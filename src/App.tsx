@@ -58,6 +58,9 @@ const defaultData: AppData = {
   ],
   staff: [
     { id: 'staff-admin', name: '관리자', teamId: 'team-media', role: 'admin', password: '0000' },
+    { id: 'staff-media', name: '미디어', teamId: 'team-media', role: 'employee', password: '1111' },
+    { id: 'staff-dev', name: '개발', teamId: 'team-tech', role: 'employee', password: '1111' },
+    { id: 'staff-plan', name: '기획', teamId: 'team-plan', role: 'free', password: '1111' },
   ],
   schedules: [],
   slack: { enabled: false, webhookUrl: '', defaultChannel: '#일정', notifyOnCreate: true, notifyOnUpdate: true, notifyOnDelete: true, morningBrief: true },
