@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="120" fill="#5D2E8D"/>
+  <rect x="94" y="128" width="324" height="280" rx="42" fill="#fff"/>
+  <path d="M94 178h324" stroke="#5D2E8D" stroke-width="24"/>
+  <circle cx="170" cy="250" r="23" fill="#5D2E8D"/>
+  <circle cx="256" cy="250" r="23" fill="#5D2E8D"/>
+  <circle cx="342" cy="250" r="23" fill="#5D2E8D"/>
+  <circle cx="170" cy="330" r="23" fill="#5D2E8D" opacity=".68"/>
+  <circle cx="256" cy="330" r="23" fill="#5D2E8D" opacity=".68"/>
+  <text x="256" y="98" text-anchor="middle" font-family="Arial, sans-serif" font-size="64" font-weight="900" fill="#fff">IL</text>
+</svg>
