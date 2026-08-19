@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import './App.css'
+import { deleteScheduleFromSupabase, deleteStaffFromSupabase, deleteTeamFromSupabase, fetchAppDataFromSupabase, isSupabaseConfigured, saveScheduleToSupabase, saveStaffToSupabase, saveTeamToSupabase } from './lib/supabase'
 
 type Role = 'admin' | 'employee' | 'free'
 type ScheduleType = 'team' | 'event' | 'project'
@@ -59,7 +60,7 @@ const defaultData: AppData = {
   staff: [
     { id: 'staff-admin', name: '관리자', teamId: 'team-media', role: 'admin', password: '0000' },
     { id: 'staff-media', name: '미디어', teamId: 'team-media', role: 'employee', password: '1111' },
-    { id: 'staff-dev', name: '개발', teamId: 'team-tech', role: 'employee', password: '1111' },
+    { id: 'staff-dev', name: '테크', teamId: 'team-tech', role: 'employee', password: '1111' },
     { id: 'staff-plan', name: '기획', teamId: 'team-plan', role: 'free', password: '1111' },
   ],
   schedules: [],
@@ -76,7 +77,7 @@ function makeSchedule(partial: Partial<Schedule>): Schedule { return { id: '', t
 function toISODate(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
 function addDays(date: Date, days: number) { const next = new Date(date); next.setDate(next.getDate() + days); return toISODate(next) }
 function monthName(date: Date) { return `${date.getFullYear()}년 ${date.getMonth() + 1}월` }
-function makeId(prefix: string) { return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}` }
+function makeId(prefix: string) { if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID(); return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}` }
 function normalizeRole(role: unknown): Role { return role === 'manager' || role === 'employee' ? 'employee' : role === 'staff' || role === 'free' ? 'free' : 'admin' }
 function normalizeType(type: unknown): ScheduleType { if (type === 'project') return 'project'; if (type === 'team') return 'team'; return 'event' }
 function normalizeTeam(team: Partial<Team>, index = 0): Team {
@@ -132,6 +133,7 @@ export default function App() {
   const [installHint, setInstallHint] = useState('')
   const [newStaff, setNewStaff] = useState({ name: '', teamId: defaultData.teams[0].id, role: 'employee' as Role, password: '1111' })
   const [newTeam, setNewTeam] = useState({ name: '', slackChannel: '', color: BRAND })
+  const [dbStatus, setDbStatus] = useState(isSupabaseConfigured ? 'Supabase 연결 준비 중' : '로컬 저장 모드')
 
   const currentUser = data.staff.find((s) => s.id === currentUserId)
   const isAdmin = currentUser?.role === 'admin'
@@ -152,6 +154,23 @@ export default function App() {
   }).sort(sortSchedules)
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    let cancelled = false
+    fetchAppDataFromSupabase()
+      .then((remoteData) => {
+        if (cancelled) return
+        setData((prev) => ({ ...prev, ...remoteData, slack: prev.slack, settings: prev.settings }))
+        setDbStatus('Supabase DB 연결됨')
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        console.error(error)
+        setDbStatus('Supabase 연결 실패 - 로컬 저장 모드')
+        setNotice('Supabase 연결을 확인해주세요. 임시로 로컬 저장 모드로 표시합니다.')
+      })
+    return () => { cancelled = true }
+  }, [])
   useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => undefined) }, [])
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 5000); return () => window.clearTimeout(timer) }, [notice])
 
@@ -161,6 +180,7 @@ export default function App() {
   function selectionLabel(schedule: Schedule) { if (schedule.type === 'team') return teamName(schedule.teamId); if (schedule.type === 'project') return '프로젝트'; return '일정' }
   function displayColor(schedule: Schedule) { return schedule.type === 'team' ? teamColor(schedule.teamId) : schedule.color }
   function canEdit(schedule: Schedule) { if (!currentUser) return false; const s = data.schedules.find((item) => item.id === originalId(schedule.id)) || schedule; return isAdmin || s.createdBy === currentUser.id || s.ownerId === currentUser.id }
+  function syncError(error: unknown) { console.error(error); setNotice('화면에는 반영됐지만 Supabase 저장에 실패했습니다. 환경변수/RLS를 확인해주세요.') }
   function openNewSchedule(date = selectedDate, type: ScheduleType = 'team') { if (!currentUser) return; const color = type === 'team' ? teamColor(currentUser.teamId) : BRAND; setEditing(makeSchedule({ date, repeatUntil: date, type, teamId: currentUser.teamId, ownerId: currentUser.id, memberIds: [currentUser.id], createdBy: currentUser.id, color })); setShowForm(true) }
   function openEdit(schedule: Schedule) { const found = data.schedules.find((s) => s.id === originalId(schedule.id)); if (found && canEdit(found)) { setEditing(normalizeSchedule(found)); setShowForm(true) } }
   function login(event: FormEvent) { event.preventDefault(); const found = data.staff.find((s) => s.name === loginName.trim() && s.password === loginPassword); if (!found) { setNotice('이름 또는 비밀번호가 맞지 않습니다.'); return } setCurrentUserId(found.id); if (rememberMe) localStorage.setItem(SESSION_KEY, found.id); setNotice(`${found.name}님으로 로그인되었습니다.`) }
@@ -172,24 +192,25 @@ export default function App() {
     const normalized = { ...editing, color: editing.type === 'team' ? teamColor(editing.teamId) : editing.color, endTime: editing.endTime < editing.startTime ? editing.startTime : editing.endTime, repeatUntil: editing.type === 'project' ? (editing.repeatUntil || editing.date) : editing.repeatUntil, title: editing.title.trim() || '제목 없는 일정', memberIds: [editing.ownerId], projectName: '', location: '', updatedAt: new Date().toISOString(), createdBy: editing.createdBy || currentUser.id }
     const isNew = !normalized.id, saved = { ...normalized, id: normalized.id || makeId('sch') }
     setData((prev) => ({ ...prev, schedules: isNew ? [...prev.schedules, saved] : prev.schedules.map((s) => s.id === saved.id ? saved : s) }))
+    saveScheduleToSupabase(saved).catch(syncError)
     setShowForm(false); setEditing(null); setNotice(isNew ? '일정이 등록되었습니다.' : '일정이 수정되었습니다.'); maybeNotifySlack(isNew ? 'create' : 'update', saved)
   }
-  function deleteSchedule(id: string) { const target = data.schedules.find((s) => s.id === originalId(id)); if (!target || !canEdit(target)) return; if (!confirm('이 일정을 삭제할까요?')) return; setData((p) => ({ ...p, schedules: p.schedules.filter((s) => s.id !== target.id) })); setNotice('일정이 삭제되었습니다.'); maybeNotifySlack('delete', target); setShowForm(false); setEditing(null) }
+  function deleteSchedule(id: string) { const target = data.schedules.find((s) => s.id === originalId(id)); if (!target || !canEdit(target)) return; if (!confirm('이 일정을 삭제할까요?')) return; setData((p) => ({ ...p, schedules: p.schedules.filter((s) => s.id !== target.id) })); deleteScheduleFromSupabase(target.id).catch(syncError); setNotice('일정이 삭제되었습니다.'); maybeNotifySlack('delete', target); setShowForm(false); setEditing(null) }
   function maybeNotifySlack(action: 'create' | 'update' | 'delete', schedule: Schedule) { if (!data.slack.enabled || !schedule.notifySlack || !data.slack.webhookUrl) return; const ok = action === 'create' ? data.slack.notifyOnCreate : action === 'update' ? data.slack.notifyOnUpdate : data.slack.notifyOnDelete; if (!ok) return; fetch(data.slack.webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: `[Scheduler] ${action}\n• ${schedule.date} ${schedule.allDay ? '하루종일' : `${schedule.startTime}~${schedule.endTime}`}\n• [${selectionLabel(schedule)}] ${schedule.title}\n• ${teamName(schedule.teamId)} / ${staffName(schedule.ownerId)}` }) }).catch(() => setNotice('Slack 발송을 시도했지만 실패했을 수 있습니다.')) }
-  function addStaff(event: FormEvent) { event.preventDefault(); if (!newStaff.name.trim()) return; setData((p) => ({ ...p, staff: [...p.staff, { ...newStaff, id: makeId('staff'), name: newStaff.name.trim() }] })); setNewStaff({ name: '', teamId: data.teams[0]?.id || '', role: 'employee', password: '1111' }); setNotice('직원이 등록되었습니다.') }
-  function updateStaff(id: string, patch: Partial<Staff>) { setData((p) => ({ ...p, staff: p.staff.map((s) => s.id === id ? { ...s, ...patch } : s) })) }
-  function removeStaff(id: string) { if (id === currentUserId) { setNotice('현재 로그인한 계정은 삭제할 수 없습니다.'); return } if (!confirm('직원을 삭제할까요?')) return; setData((p) => ({ ...p, staff: p.staff.filter((s) => s.id !== id), schedules: p.schedules.filter((s) => s.ownerId !== id && s.createdBy !== id) })); setNotice('직원을 삭제했습니다.') }
-  function addTeam(event: FormEvent) { event.preventDefault(); if (!newTeam.name.trim()) return; setData((p) => ({ ...p, teams: [...p.teams, { id: makeId('team'), name: newTeam.name.trim(), slackChannel: newTeam.slackChannel || '#팀채널', color: newTeam.color }] })); setNewTeam({ name: '', slackChannel: '', color: BRAND }); setNotice('팀이 생성되었습니다.') }
-  function updateTeam(id: string, patch: Partial<Team>) { setData((p) => ({ ...p, teams: p.teams.map((t) => t.id === id ? { ...t, ...patch } : t), schedules: p.schedules.map((s) => s.teamId === id && s.type === 'team' && patch.color ? { ...s, color: patch.color } : s) })) }
-  function removeTeam(id: string) { if (data.staff.some((s) => s.teamId === id)) { setNotice('소속 직원이 있는 팀은 삭제할 수 없습니다.'); return } if (!confirm('팀을 삭제할까요?')) return; setData((p) => ({ ...p, teams: p.teams.filter((t) => t.id !== id), schedules: p.schedules.filter((s) => s.teamId !== id) })); setNotice('팀을 삭제했습니다.') }
+  function addStaff(event: FormEvent) { event.preventDefault(); if (!newStaff.name.trim()) return; const created = { ...newStaff, id: makeId('staff'), name: newStaff.name.trim() }; setData((p) => ({ ...p, staff: [...p.staff, created] })); saveStaffToSupabase(created).catch(syncError); setNewStaff({ name: '', teamId: data.teams[0]?.id || '', role: 'employee', password: '1111' }); setNotice('직원이 등록되었습니다.') }
+  function updateStaff(id: string, patch: Partial<Staff>) { const next = data.staff.find((s) => s.id === id); const updated = next ? { ...next, ...patch } : null; setData((p) => ({ ...p, staff: p.staff.map((s) => s.id === id ? { ...s, ...patch } : s) })); if (updated) saveStaffToSupabase(updated).catch(syncError) }
+  function removeStaff(id: string) { if (id === currentUserId) { setNotice('현재 로그인한 계정은 삭제할 수 없습니다.'); return } if (!confirm('직원을 삭제할까요?')) return; setData((p) => ({ ...p, staff: p.staff.filter((s) => s.id !== id), schedules: p.schedules.filter((s) => s.ownerId !== id && s.createdBy !== id) })); deleteStaffFromSupabase(id).catch(syncError); setNotice('직원을 삭제했습니다.') }
+  function addTeam(event: FormEvent) { event.preventDefault(); if (!newTeam.name.trim()) return; const created = { id: makeId('team'), name: newTeam.name.trim(), slackChannel: newTeam.slackChannel || '#팀채널', color: newTeam.color }; setData((p) => ({ ...p, teams: [...p.teams, created] })); saveTeamToSupabase(created).catch(syncError); setNewTeam({ name: '', slackChannel: '', color: BRAND }); setNotice('팀이 생성되었습니다.') }
+  function updateTeam(id: string, patch: Partial<Team>) { const next = data.teams.find((t) => t.id === id); const updated = next ? { ...next, ...patch } : null; setData((p) => ({ ...p, teams: p.teams.map((t) => t.id === id ? { ...t, ...patch } : t), schedules: p.schedules.map((s) => s.teamId === id && s.type === 'team' && patch.color ? { ...s, color: patch.color } : s) })); if (updated) saveTeamToSupabase(updated).catch(syncError) }
+  function removeTeam(id: string) { if (data.staff.some((s) => s.teamId === id)) { setNotice('소속 직원이 있는 팀은 삭제할 수 없습니다.'); return } if (!confirm('팀을 삭제할까요?')) return; setData((p) => ({ ...p, teams: p.teams.filter((t) => t.id !== id), schedules: p.schedules.filter((s) => s.teamId !== id) })); deleteTeamFromSupabase(id).catch(syncError); setNotice('팀을 삭제했습니다.') }
   function updateLogo(file?: File) { if (!file) return; const reader = new FileReader(); reader.onload = () => setData((p) => ({ ...p, settings: { ...p.settings, logoUrl: String(reader.result) } })); reader.readAsDataURL(file); setNotice('상단 로고 이미지가 변경되었습니다.') }
   function resetSampleData() { if (!confirm('로컬 저장 데이터를 초기 샘플로 되돌릴까요?')) return; localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(SESSION_KEY); setData(defaultData); setCurrentUserId(''); setNotice('초기 샘플 데이터로 복구했습니다.') }
   function installApp() { const ua = navigator.userAgent.toLowerCase(); setInstallHint(ua.includes('iphone') || ua.includes('ipad') ? '아이폰: Safari 하단 공유 버튼 → 홈 화면에 추가 → 추가' : '안드로이드: Chrome 메뉴 → 앱 설치 또는 홈 화면에 추가') }
 
-  if (!currentUser) return <main className="loginPage"><section className="loginCard"><img className="loginLogo" src={data.settings.logoUrl} alt="I.LAB MEDIA" /><h1>Scheduler</h1><p className="subText">팀·일정·프로젝트를 한 곳에서 관리합니다.</p><form onSubmit={login} className="loginForm"><label>직원 이름<input value={loginName} onChange={(e) => setLoginName(e.target.value)} placeholder="관리자" /></label><label>비밀번호<input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="0000" /></label><label className="checkLine"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /> 자동 로그인 유지</label><button className="primaryBtn">로그인</button></form><div className="sampleBox">샘플 계정: <b>관리자 / 0000, 미디어 / 1111, 개발 / 1111, 기획 / 1111</b></div>{notice && <p className="notice">{notice}</p>}</section></main>
+  if (!currentUser) return <main className="loginPage"><section className="loginCard"><img className="loginLogo" src={data.settings.logoUrl} alt="I.LAB MEDIA" /><h1>Scheduler</h1><p className="subText">팀·일정·프로젝트를 한 곳에서 관리합니다.</p><form onSubmit={login} className="loginForm"><label>직원 이름<input value={loginName} onChange={(e) => setLoginName(e.target.value)} placeholder="관리자" /></label><label>비밀번호<input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="0000" /></label><label className="checkLine"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /> 자동 로그인 유지</label><button className="primaryBtn">로그인</button></form><div className="sampleBox">샘플 계정: <b>관리자 / 0000, 미디어 / 1111, 테크 / 1111, 기획 / 1111</b></div>{notice && <p className="notice">{notice}</p>}</section></main>
 
   return <main className="appShell">
-    <header className="topBar"><div className="brandHeader"><img src={data.settings.logoUrl} alt="I.LAB MEDIA" /><div><p className="eyebrow"></p><h1>{data.settings.headerTitle}</h1></div></div><div className="userPill"><span style={{ backgroundColor: teamColor(currentUser.teamId) }} /><div><b>{currentUser.name}</b><small>{teamName(currentUser.teamId)} · {roleLabel(currentUser.role)}</small></div><button onClick={logout}>나가기</button></div></header>
+    <header className="topBar"><div className="brandHeader"><img src={data.settings.logoUrl} alt="I.LAB MEDIA" /><div><p className="eyebrow"></p><h1>{data.settings.headerTitle}</h1></div></div><div className="userPill"><span style={{ backgroundColor: teamColor(currentUser.teamId) }} /><div><b>{currentUser.name}</b><small>{teamName(currentUser.teamId)} · {roleLabel(currentUser.role)} · {dbStatus}</small></div><button onClick={logout}>나가기</button></div></header>
     {notice && <div className="toast" onClick={() => setNotice('')}>{notice}</div>}
     <section className="quickStats"><button onClick={() => setView('today')}><b>{listCount(data.schedules, today, today)}</b><span>오늘 일정</span></button><button onClick={() => setView('week')}><b>{listCount(data.schedules, today, weekEnd)}</b><span>이번 주</span></button><button onClick={() => setView('project')}><b>{projectSchedules.length}</b><span>프로젝트</span></button><button onClick={() => openNewSchedule(selectedDate)} className="solid">+ 일정 등록</button></section>
     <nav className="viewTabs"><button className={view === 'month' ? 'active' : ''} onClick={() => setView('month')}>월간 캘린더</button><button className={view === 'today' ? 'active' : ''} onClick={() => setView('today')}>오늘</button><button className={view === 'week' ? 'active' : ''} onClick={() => setView('week')}>주간</button><button className={view === 'team' ? 'active' : ''} onClick={() => setView('team')}>팀별</button><button className={view === 'mine' ? 'active' : ''} onClick={() => setView('mine')}>내 일정</button><button className={view === 'project' ? 'active' : ''} onClick={() => setView('project')}>프로젝트</button></nav>
