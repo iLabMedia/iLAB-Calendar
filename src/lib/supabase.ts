@@ -102,7 +102,7 @@ function staffToRow(staff: Staff) {
 }
 
 function scheduleToRow(schedule: Schedule) {
-  const endDate = schedule.type === 'project' ? (schedule.repeatUntil || schedule.date) : schedule.date
+  const endDate = schedule.repeatUntil || schedule.date
   return {
     id: schedule.id,
     type: schedule.type,
