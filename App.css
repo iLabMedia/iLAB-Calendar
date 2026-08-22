@@ -1,0 +1,130 @@
+#root { min-height: 100svh; }
+:root { --calendar-font: Pretendard, Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+* { box-sizing: border-box; }
+button,input,select,textarea { font: inherit; }
+button { cursor: pointer; }
+body { margin: 0; }
+.loginPage { min-height: 100svh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 20% 20%, rgba(93,46,141,.16), transparent 28%), linear-gradient(135deg,#fff 0%,#f7f1ff 100%); }
+.loginCard { width: min(460px,100%); border: 2px solid #5D2E8D; border-radius: 30px; padding: 34px; background: rgba(255,255,255,.96); box-shadow: 0 24px 70px rgba(93,46,141,.18); text-align: center; }
+.loginLogo { width: min(330px,100%); max-height: 72px; object-fit: contain; margin: 0 auto 16px; display: block; }
+h1,h2,h3,p { margin-top: 0; }
+.loginCard h1,.topBar h1 { margin: 0; color: #111; letter-spacing: -.05em; }
+.loginCard h1 { font-size: 42px; }
+.subText,.loginCard .notice { color: #4b4b55; line-height: 1.55; }
+.loginForm,.stackForm,.scheduleForm { display: grid; gap: 12px; }
+label { display: grid; gap: 6px; color: #222; font-size: 14px; font-weight: 800; text-align: left; }
+input,select,textarea { width: 100%; min-height: 44px; border: 1px solid #ded6eb; border-radius: 14px; padding: 9px 12px; background: #fff; color: #111; font-size: 15px; }
+textarea { min-height: 78px; resize: vertical; }
+.checkLine { display: flex; align-items: center; gap: 9px; }
+.checkLine input,.toggleRow input { width: 18px; min-height: 18px; accent-color: #5D2E8D; }
+.primaryBtn,.solid { min-height: 46px; border: 0; border-radius: 16px; padding: 0 18px; background: #5D2E8D; color: white; font-weight: 900; box-shadow: 0 14px 30px rgba(93,46,141,.22); }
+.fullBtn { width: 100%; margin-top: 14px; }
+.ghost { border: 1px solid #e0d4ee; border-radius: 999px; background: #fff; color: #3d2659; padding: 8px 13px; font-weight: 800; }
+.formActions { display: flex; justify-content: flex-start; gap: 8px; }
+.sampleBox { margin-top: 16px; padding: 13px; border-radius: 16px; background: #f5effc; color: #292238; font-size: 13px; }
+.appShell { min-height: 100svh; background: #fff; color: #111; padding: 14px; }
+.topBar { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1480px; min-height: 82px; margin: 0 auto 12px; padding: 14px 18px; border: 2px solid #5D2E8D; border-radius: 28px; background: #fff; }
+.brandHeader { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.brandHeader img { width: min(220px,34vw); max-height: 46px; object-fit: contain; }
+.topBar h1 { font-size: 28px; white-space: nowrap; }
+.userPill { display: flex; align-items: center; gap: 10px; min-width: 270px; max-width: 420px; padding: 8px 10px; border-radius: 999px; background: #f7f2ff; border: 1px solid #e5d8f7; }
+.userPill > span { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; }
+.userPill div { display: grid; min-width: 0; text-align: left; line-height: 1.2; }
+.userPill b,.userPill small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.userPill small { color: #5d556a; font-size: 12px; }
+.userPill button,.viewTabs button,.calendarHeader button,.panelTitle button,.cardActions button,.editRow button,.staffMiniCard button { border: 1px solid #e0d4ee; border-radius: 999px; background: #fff; color: #3d2659; padding: 8px 13px; font-weight: 800; white-space: nowrap; }
+.quickStats,.viewTabs,.calendarPanel,.listPanel,.adminGrid { max-width: 1480px; margin-left: auto; margin-right: auto; }
+.quickStats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 12px; }
+.quickStats button { display: flex; align-items: center; justify-content: center; gap: 22px; min-height: 52px; border: 1px solid #eadff5; border-radius: 22px; padding: 10px 18px; background: #fff; text-align: center; }
+.quickStats b { color: #5D2E8D; font-size: 31px; line-height: 1; }
+.quickStats span { color: #4c4655; font-size: 15px; font-weight: 900; white-space: nowrap; }
+.quickStats .solid { background: #5D2E8D; color: white; border-color: #5D2E8D; font-size: 16px; }
+.viewTabs { display: flex; gap: 8px; padding: 8px; margin-bottom: 12px; border-radius: 22px; background: #f5f0fb; overflow-x: auto; }
+.viewTabs button { background: transparent; }
+.viewTabs .active { background: #5D2E8D; color: white; }
+.calendarPanel,.listPanel,.adminCard { border: 1px solid #eadff5; border-radius: 28px; background: #fff; box-shadow: 0 18px 55px rgba(52,29,82,.08); padding: 16px; }
+.calendarPanel { font-family: var(--calendar-font); }
+.calendarPanel.full { width: 100%; }
+.calendarHeader,.panelTitle { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.calendarHeader h2,.panelTitle h2,.adminCard h2 { margin: 0; color: #111; font-size: 20px; white-space: nowrap; }
+.calendarHeader button { min-width: 42px; height: 42px; padding: 0 14px; font-size: 20px; }
+.calendarHeader .todayBtn { width: auto; min-width: 58px; font-size: 14px; }
+.weekdays,.calendarGrid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 7px; }
+.weekdays { margin-bottom: 7px; color: #5D2E8D; font-size: 12px; text-align: center; }
+.weekdays b:first-child,.dayCell.holiday .dayNum,.dayCell:nth-child(7n+1) .dayNum { color: #d32020; }
+.calendarGrid.twoWeeks .dayCell { min-height: 186px; }
+.dayCell { position: relative; border: 1px solid #ece4f7; border-radius: 18px; padding: 35px 8px 8px; background: #fff; text-align: left; transition: .18s ease; overflow: hidden; }
+.dayCell:hover { border-color: #5D2E8D; box-shadow: inset 0 0 0 1px #5D2E8D; }
+.dayCell.today { background: #fbf7ff; }
+.dayCell.today .dayNum { background: #5D2E8D; color: white; }
+.dayNum { position: absolute; top: 6px; left: 6px; display: inline-grid; place-items: center; width: 25px; height: 25px; border: 0; border-radius: 50%; background: transparent; color: #111; font-size: 13px; font-weight: 700; padding: 0; }
+.holidayName { position: absolute; top: 10px; left: 35px; right: 6px; overflow: hidden; color: #d32020; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.chips { display: grid; gap: 5px; }
+.eventChip { font-family: var(--calendar-font); width: 100%; overflow: hidden; border: 0; border-radius: 8px; padding: 4px 6px; font-size: 10.5px; font-weight: 500; letter-spacing: -.02em; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.eventChip.filled { background: var(--event-color); color: white; }
+.eventChip.timed { position: relative; background: #fff; color: #111; padding-left: 16px; border: 1px solid #efe6f9; }
+.eventChip.timed::before { content: ''; position: absolute; left: 5px; top: 50%; width: 7px; height: 7px; transform: translateY(-50%); border-radius: 50%; background: var(--event-color); }
+.scheduleList { display: grid; gap: 10px; }
+.scheduleCard { display: grid; grid-template-columns: 130px minmax(240px,1.1fr) 1.4fr auto auto; align-items: center; gap: 18px; min-height: 68px; border: 1px solid #eadff5; border-radius: 20px; padding: 12px 16px; background: #fff; text-align: left; box-shadow: 0 6px 20px rgba(93,46,141,.04); }
+.scheduleTime { display: grid; gap: 5px; }
+.scheduleTime span { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-width: 62px; min-height: 24px; border-radius: 999px; padding: 0 12px; color: white; font-size: 12px; font-weight: 900; }
+.scheduleTime b { color: #5D2E8D; font-size: 15px; white-space: nowrap; }
+.scheduleMain { min-width: 0; border-right: 1px solid #eadff5; padding-right: 18px; }
+.scheduleMain h3 { margin: 0 0 6px; overflow: hidden; color: #111; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.scheduleMain p,.scheduleCard .desc { margin: 0; overflow: hidden; color: #51485d; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.repeatBadge { display: inline-flex; width: fit-content; border-radius: 999px; padding: 4px 9px; background: #f2e9fb; color: #5D2E8D; font-size: 12px; font-style: normal; font-weight: 900; white-space: nowrap; }
+.cardActions { display: flex; gap: 6px; justify-content: flex-end; }
+.cardActions button { min-width: 56px; min-height: 38px; color: #4a236a; font-size: 14px; }
+.emptyState { display: grid; place-items: center; min-height: 150px; border: 1px dashed #dccdea; border-radius: 18px; color: #776a86; font-weight: 800; }
+.emptyState.compact { min-height: 90px; }
+.projectPanel { overflow: hidden; }
+.projectDays { grid-template-columns: repeat(42,minmax(24px,1fr)); font-size: 12px; }
+.projectDays .mutedText { color: #b6adbf; }
+.projectRows { display: grid; grid-template-columns: repeat(42,minmax(24px,1fr)); grid-auto-rows: 52px; gap: 0; min-height: 270px; border: 1px solid #eee6f8; border-radius: 18px; background-image: linear-gradient(to right,#eee6f8 1px,transparent 1px); background-size: calc(100% / 42) 100%; padding: 14px 0; }
+.projectRow { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; position: relative; min-height: 52px; }
+.projectBar { position: relative; z-index: 1; overflow: hidden; align-self: center; min-height: 34px; border: 0; border-radius: 8px; padding: 4px 12px; color: white; text-align: left; box-shadow: 0 8px 18px rgba(0,0,0,.12); }
+.projectBar span,.projectBar small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projectBar span { font-weight: 900; }
+.adminGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.adminCard.wide { grid-column: 1 / -1; }
+.editList { display: grid; gap: 8px; }
+.editRow { display: grid; grid-template-columns: 1.2fr 1fr .8fr .8fr 60px auto; gap: 8px; align-items: center; padding: 10px; border-radius: 16px; background: #faf7ff; }
+.editRow.team { grid-template-columns: 210px 1fr 1fr auto; }
+.staffGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.staffMiniCard { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; border: 1px solid #eee6f8; border-radius: 18px; background: #fbf8ff; }
+.staffMiniCard input:first-child { grid-column: 1 / -1; font-weight: 900; }
+.staffMiniCard button { grid-column: 1 / -1; }
+.paletteField { position: relative; display: grid; gap: 6px; color: #222; font-size: 14px; font-weight: 800; text-align: left; }
+.paletteField.compact { min-width: 180px; }
+.paletteField summary { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 1px solid #ded6eb; border-radius: 14px; padding: 9px 12px; background: #fff; list-style: none; }
+.paletteField summary::-webkit-details-marker { display: none; }
+.paletteField i { width: 22px; height: 22px; border: 1px solid rgba(0,0,0,.16); border-radius: 50%; }
+.paletteGrid { position: absolute; z-index: 40; display: grid; grid-template-columns: repeat(8,34px); gap: 10px; width: max-content; max-width: min(420px, calc(100vw - 50px)); margin-top: 8px; border: 1px solid #e5d8f7; border-radius: 18px; padding: 14px; background: white; box-shadow: 0 18px 45px rgba(0,0,0,.18); }
+.paletteGrid button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(0,0,0,.12); border-radius: 50%; padding: 0; color: white; font-weight: 900; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.paletteGrid button.selected { outline: 3px solid #2f86c6; outline-offset: 2px; }
+.toast { position: fixed; top: 18px; left: 50%; z-index: 30; transform: translateX(-50%); max-width: calc(100vw - 32px); border-radius: 999px; padding: 12px 18px; background: #21142f; color: white; box-shadow: 0 18px 45px rgba(0,0,0,.22); font-weight: 800; }
+.modalBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 18px; background: rgba(18,10,28,.52); }
+.scheduleForm,.dayModal { width: min(620px,100%); max-height: 92svh; overflow: auto; border-radius: 28px; padding: 22px; background: white; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+.formHead,.twoCol { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.twoCol { grid-template-columns: 1fr 1fr; }
+.formHead h2 { margin: 0; }
+.formHead button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: #f1e7fb; color: #5D2E8D; font-size: 26px; }
+.typeTabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; border-radius: 16px; padding: 6px; background: #f5effc; }
+.typeTabs.two { grid-template-columns: repeat(2,1fr); }
+.typeTabs button { min-height: 42px; border: 0; border-radius: 12px; background: transparent; color: #5D2E8D; font-weight: 900; }
+.typeTabs .active { background: #5D2E8D; color: white; box-shadow: 0 8px 20px rgba(93,46,141,.18); }
+.autoTeamBox { display: flex; align-items: center; gap: 10px; border: 1px solid #eadff5; border-radius: 16px; padding: 12px; background: #fbf8ff; }
+.autoTeamBox span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 13px; background: var(--team-color); color: white; }
+.autoTeamBox b { color: #111; }
+.autoTeamBox small { color: #675b72; }
+.dayScheduleList { display: grid; gap: 8px; margin-top: 14px; }
+.dayScheduleList button { display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 10px; min-height: 48px; border: 1px solid #eadff5; border-radius: 14px; background: #fff; padding: 9px 12px; text-align: left; }
+.dayScheduleList b { display: grid; place-items: center; min-height: 28px; border-radius: 999px; background: var(--event-color); color: white; font-size: 12px; }
+.dayScheduleList span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+@media (max-width: 1100px) { .scheduleCard{grid-template-columns:120px 1fr auto}.scheduleCard .desc{grid-column:2 / 3}.staffGrid{grid-template-columns:repeat(2,1fr)} }
+@media (max-width: 900px) {
+  .appShell{padding:6px}.topBar{min-height:72px;gap:8px;padding:10px 12px;border-radius:22px}.brandHeader{gap:9px;flex:1}.brandHeader img{width:min(240px,54vw);max-height:38px}.topBar h1{font-size:22px}.userPill{min-width:0;max-width:220px;gap:6px;padding:5px 7px}.userPill > span{width:24px;height:24px}.userPill b{font-size:12px}.userPill small{font-size:9px}.userPill button{padding:6px 9px;font-size:11px}.quickStats{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.quickStats button{min-height:54px;gap:3px;flex-direction:column;padding:7px 4px;border-radius:16px}.quickStats b{font-size:28px;order:2}.quickStats span{font-size:12px;order:1}.quickStats .solid{font-size:14px;line-height:1.15}.viewTabs{gap:5px;padding:6px;margin-bottom:8px}.viewTabs button{padding:7px 10px;font-size:13px}.calendarPanel,.listPanel,.adminCard{padding:8px;border-radius:18px}.calendarHeader{display:grid;grid-template-columns:38px 1fr 54px 38px;gap:5px}.calendarHeader h2{font-size:14px;text-align:center;white-space:normal}.calendarHeader button{min-width:36px;height:36px;padding:0 8px;font-size:16px}.weekdays,.calendarGrid{gap:3px}.weekdays{font-size:11px}.calendarGrid.twoWeeks .dayCell{min-height:118px}.dayCell{padding:29px 3px 4px;border-radius:10px}.dayNum{top:4px;left:4px;width:21px;height:21px;font-size:11px;font-weight:600}.holidayName{top:7px;left:27px;right:3px;font-size:8px}.chips{gap:3px}.eventChip{padding:2px 3px;font-size:8.5px;font-weight:500;border-radius:6px}.eventChip.timed{padding-left:12px}.eventChip.timed::before{left:4px;width:5px;height:5px}.panelTitle h2{font-size:17px;white-space:nowrap}.scheduleCard{grid-template-columns:1fr;gap:7px;min-height:0;padding:10px}.scheduleMain{border-right:0;padding-right:0}.scheduleMain h3{font-size:15px}.adminGrid{grid-template-columns:1fr}.adminCard.wide{grid-column:auto}.staffGrid{grid-template-columns:1fr}.twoCol,.editRow,.editRow.team{grid-template-columns:1fr}.projectDays,.projectRows{min-width:980px}.projectPanel{overflow-x:auto}.scheduleForm,.dayModal{padding:16px;border-radius:22px}.modalBackdrop{padding:10px}.dayScheduleList button{grid-template-columns:48px 1fr}.autoTeamBox{align-items:flex-start;flex-direction:column;gap:6px}
+}
+@media (max-width: 520px) {
+  .topBar{border-radius:20px}.brandHeader img{width:min(210px,50vw)}.topBar h1{font-size:20px}.userPill{max-width:182px}.userPill small{max-width:92px}.quickStats .solid{border-radius:18px}.calendarGrid.twoWeeks .dayCell{min-height:108px}.eventChip{font-size:8px}.calendarHeader h2{font-size:12px}
+}
