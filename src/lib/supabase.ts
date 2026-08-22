@@ -31,11 +31,21 @@ export type SlackSetting = { enabled: boolean; webhookUrl: string; defaultChanne
 export type AppSetting = { logoUrl: string; headerTitle: string }
 export type AppData = { teams: Team[]; staff: Staff[]; schedules: Schedule[]; slack: SlackSetting; settings: AppSetting }
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+function cleanEnvValue(value: string | undefined) {
+  return (value || '').trim().replace(/^['"]|['"]$/g, '')
+}
+
+function cleanSupabaseUrl(value: string | undefined) {
+  return cleanEnvValue(value)
+    .replace(/\/rest\/v1\/?$/i, '')
+    .replace(/\/$/, '')
+}
+
+const supabaseUrl = cleanSupabaseUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined)
+const supabaseAnonKey = cleanEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
-export const supabase = isSupabaseConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null
+export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null
 
 const emptySlack: SlackSetting = { enabled: false, webhookUrl: '', defaultChannel: '#일정', notifyOnCreate: true, notifyOnUpdate: true, notifyOnDelete: true, morningBrief: true }
 const emptySettings: AppSetting = { logoUrl: '/ilabmedia-logo.png', headerTitle: 'Scheduler' }

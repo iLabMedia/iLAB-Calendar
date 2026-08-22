@@ -161,6 +161,14 @@ export default function App() {
       .then((remoteData) => {
         if (cancelled) return
         setData((prev) => ({ ...prev, ...remoteData, slack: prev.slack, settings: prev.settings }))
+        setCurrentUserId((previousId) => {
+          const preserved = remoteData.staff.find((staff) => staff.id === previousId)
+          const admin = remoteData.staff.find((staff) => staff.role === 'admin')
+          const nextId = preserved?.id || admin?.id || remoteData.staff[0]?.id || ''
+          if (nextId) localStorage.setItem(SESSION_KEY, nextId)
+          return nextId
+        })
+        setNewStaff((prev) => ({ ...prev, teamId: remoteData.teams[0]?.id || prev.teamId }))
         setDbStatus('Supabase DB 연결됨')
       })
       .catch((error: unknown) => {
