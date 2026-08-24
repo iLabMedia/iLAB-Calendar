@@ -79,9 +79,10 @@ textarea { min-height: 78px; resize: vertical; }
 .cardActions button { min-width: 56px; min-height: 38px; color: #4a236a; font-size: 14px; }
 .emptyState { display: grid; place-items: center; min-height: 150px; border: 1px dashed #dccdea; border-radius: 18px; color: #776a86; font-weight: 800; }
 .emptyState.compact { min-height: 90px; }
-.mainBelowGrid { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(320px,.65fr); gap: 14px; margin-top: 14px; }
-.compactPanel .scheduleCard { grid-template-columns: 96px minmax(0,1fr) auto; gap: 12px; }
-.compactPanel .scheduleCard .desc,.compactPanel .repeatBadge { display: none; }
+.mainBelowGrid { display: grid; grid-template-columns: minmax(0,2.4fr) minmax(260px,.6fr); gap: 14px; margin-top: 14px; }
+.compactPanel .scheduleCard { grid-template-columns: 110px minmax(0,1.25fr) minmax(220px,.75fr) auto; gap: 14px; }
+.compactPanel .scheduleCard .desc { display: block; }
+.compactPanel .repeatBadge { display: none; }
 .projectMiniList { display: grid; gap: 8px; }
 .projectMiniList button { display: grid; gap: 4px; border: 1px solid #eadff5; border-left: 5px solid var(--event-color); border-radius: 14px; background: #fff; padding: 10px 12px; text-align: left; }
 .projectMiniList b { overflow: hidden; color: #111; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
