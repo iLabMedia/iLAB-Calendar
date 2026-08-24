@@ -27,7 +27,7 @@ textarea { min-height: 78px; resize: vertical; }
 .brandHeader { display: flex; align-items: center; gap: 18px; min-width: 0; }
 .brandHeader img { width: min(220px,34vw); max-height: 46px; object-fit: contain; }
 .topBar h1 { font-size: 28px; white-space: nowrap; }
-.userPill { display: flex; align-items: center; gap: 10px; min-width: 270px; max-width: 420px; padding: 8px 10px; border-radius: 999px; background: #f7f2ff; border: 1px solid #e5d8f7; }
+.userPill { display: flex; align-items: center; gap: 7px; min-width: 340px; max-width: 520px; padding: 8px 10px; border-radius: 999px; background: #f7f2ff; border: 1px solid #e5d8f7; }
 .userPill > span { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; }
 .userPill div { display: grid; min-width: 0; text-align: left; line-height: 1.2; }
 .userPill b,.userPill small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -124,7 +124,11 @@ textarea { min-height: 78px; resize: vertical; }
 .paletteGrid button.selected { outline: 3px solid #2f86c6; outline-offset: 2px; }
 .toast { position: fixed; top: 18px; left: 50%; z-index: 30; transform: translateX(-50%); max-width: calc(100vw - 32px); border-radius: 999px; padding: 12px 18px; background: #21142f; color: white; box-shadow: 0 18px 45px rgba(0,0,0,.22); font-weight: 800; }
 .modalBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 18px; background: rgba(18,10,28,.52); }
-.scheduleForm,.dayModal { width: min(620px,100%); max-height: 92svh; overflow: auto; border-radius: 28px; padding: 22px; background: white; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+.scheduleForm,.dayModal,.profileForm { width: min(620px,100%); max-height: 92svh; overflow: auto; border-radius: 28px; padding: 22px; background: white; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+.profileForm { width: min(460px,100%); display: grid; gap: 12px; }
+.profileNotice { display: grid; gap: 4px; border: 1px solid #eadff5; border-radius: 16px; padding: 12px; background: #fbf8ff; }
+.profileNotice b { color: #111; }
+.profileNotice small { color: #675b72; }
 .formHead,.twoCol { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
 .twoCol { grid-template-columns: 1fr 1fr; }
 .formHead h2 { margin: 0; }
