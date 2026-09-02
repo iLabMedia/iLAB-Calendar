@@ -21,6 +21,9 @@ textarea { min-height: 78px; resize: vertical; }
 .fullBtn { width: 100%; margin-top: 14px; }
 .ghost { border: 1px solid #e0d4ee; border-radius: 999px; background: #fff; color: #3d2659; padding: 8px 13px; font-weight: 800; }
 .formActions { display: flex; justify-content: flex-start; gap: 8px; }
+.scheduleFormActions { justify-content: space-between; align-items: center; }
+.scheduleFormActions > div { display: flex; gap: 8px; }
+.completeBtn { min-height: 46px; border: 0; border-radius: 16px; padding: 0 18px; background: #111827; color: white; font-weight: 900; box-shadow: 0 14px 30px rgba(17,24,39,.18); }
 .sampleBox { margin-top: 16px; padding: 13px; border-radius: 16px; background: #f5effc; color: #292238; font-size: 13px; }
 .appShell { min-height: 100svh; background: #fff; color: #111; padding: 14px; }
 .topBar { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1480px; min-height: 82px; margin: 0 auto 12px; padding: 14px 18px; border: 2px solid #5D2E8D; border-radius: 28px; background: #fff; }
@@ -54,6 +57,9 @@ textarea { min-height: 78px; resize: vertical; }
 .weekdays { margin-bottom: 7px; color: #5D2E8D; font-size: 12px; text-align: center; }
 .weekdays b:first-child,.dayCell.holiday .dayNum,.dayCell:nth-child(7n+1) .dayNum { color: #d32020; }
 .calendarGrid.twoWeeks .dayCell { min-height: 186px; }
+.monthGrid .dayCell { min-height: 118px; }
+.mutedMonth { opacity: .42; }
+.moreCount { display: inline-flex; width: fit-content; border-radius: 999px; padding: 2px 7px; background: #f2e9fb; color: #5D2E8D; font-size: 11px; font-weight: 900; }
 .dayCell { position: relative; border: 1px solid #ece4f7; border-radius: 18px; padding: 35px 8px 8px; background: #fff; text-align: left; transition: .18s ease; overflow: hidden; }
 .dayCell:hover { border-color: #5D2E8D; box-shadow: inset 0 0 0 1px #5D2E8D; }
 .dayCell.today { background: #fbf7ff; }
