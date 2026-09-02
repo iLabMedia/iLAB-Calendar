@@ -84,6 +84,9 @@ textarea { min-height: 78px; resize: vertical; }
 .scheduleMain p,.scheduleCard .desc { margin: 0; overflow: hidden; color: #51485d; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .repeatBadge { display: inline-flex; width: fit-content; border-radius: 999px; padding: 4px 9px; background: #f2e9fb; color: #5D2E8D; font-size: 12px; font-style: normal; font-weight: 900; white-space: nowrap; }
 .cardActions { display: flex; gap: 6px; justify-content: flex-end; }
+.groupEditList { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border-top: 1px solid #eadff5; padding-top: 8px; }
+.groupEditList b { color: #5D2E8D; font-size: 12px; }
+.groupEditList button { min-height: 30px; border: 1px solid #e0d4ee; border-radius: 999px; background: #fff; color: #4a236a; padding: 5px 10px; font-size: 12px; font-weight: 800; }
 .cardActions button { min-width: 56px; min-height: 38px; color: #4a236a; font-size: 14px; }
 .emptyState { display: grid; place-items: center; min-height: 150px; border: 1px dashed #dccdea; border-radius: 18px; color: #776a86; font-weight: 800; }
 .emptyState.compact { min-height: 90px; }
