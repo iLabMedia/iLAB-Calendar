@@ -26,6 +26,7 @@ export type Schedule = {
   notifySlack: boolean
   createdBy: string
   updatedAt: string
+  completed?: boolean
 }
 export type SlackSetting = { enabled: boolean; webhookUrl: string; defaultChannel: string; notifyOnCreate: boolean; notifyOnUpdate: boolean; notifyOnDelete: boolean; morningBrief: boolean }
 export type AppSetting = { logoUrl: string; headerTitle: string }
@@ -49,6 +50,12 @@ export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabas
 
 const emptySlack: SlackSetting = { enabled: false, webhookUrl: '', defaultChannel: '#일정', notifyOnCreate: true, notifyOnUpdate: true, notifyOnDelete: true, morningBrief: true }
 const emptySettings: AppSetting = { logoUrl: '/ilabmedia-logo.png', headerTitle: 'Scheduler' }
+const PROJECT_DONE_MARK = '[[PROJECT_DONE]]'
+function stripProjectDoneMark(text = '') { return text.replace(PROJECT_DONE_MARK, '').trim() }
+function withProjectDoneMark(text = '', completed = false) {
+  const clean = stripProjectDoneMark(text)
+  return completed ? `${PROJECT_DONE_MARK}${clean ? `\n${clean}` : ''}` : clean
+}
 
 function rowToTeam(row: Record<string, unknown>): Team {
   return {
@@ -83,13 +90,14 @@ function rowToSchedule(row: Record<string, unknown>): Schedule {
     ownerId: String(row.owner_id || ''),
     projectName: '',
     location: '',
-    description: String(row.content || ''),
+    description: stripProjectDoneMark(String(row.content || '')),
     color: String(row.color || '#5D2E8D'),
     repeat: (row.repeat_type === 'daily' || row.repeat_type === 'weekly' || row.repeat_type === 'monthly' ? row.repeat_type : 'none') as RepeatType,
     repeatUntil: String(row.repeat_until || row.end_date || row.start_date || ''),
     notifySlack: true,
     createdBy: String(row.created_by || row.owner_id || ''),
     updatedAt: String(row.updated_at || new Date().toISOString()),
+    completed: String(row.content || '').includes(PROJECT_DONE_MARK),
   }
 }
 
@@ -107,7 +115,7 @@ function scheduleToRow(schedule: Schedule) {
     id: schedule.id,
     type: schedule.type,
     title: schedule.title,
-    content: schedule.description || null,
+    content: withProjectDoneMark(schedule.description || '', schedule.type === 'project' && Boolean(schedule.completed)) || null,
     team_id: schedule.teamId || null,
     owner_id: schedule.ownerId || null,
     created_by: schedule.createdBy || schedule.ownerId || null,
