@@ -176,10 +176,21 @@ function personRoutes(items: Schedule[]) {
   return Array.from(routeMap.entries()).sort(([a], [b]) => titlePriority(a) - titlePriority(b) || a.localeCompare(b, 'ko'))
 }
 
+const briefTeamOrder = ['CEO', '경영', '기획', '미디어', '테크', '운영해외사업']
+
+function shortTeamLabel(name: string) { return name.replace(/팀$/, '').trim() || '팀 미지정' }
+function koreanDate(iso = '') {
+  const [, month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || []
+  return month && day ? `${Number(month)}월 ${Number(day)}일` : iso || '-'
+}
+function scheduleRouteText(data: AppData, items: Schedule[]) {
+  return personRoutes(items).map(([route, ids]) => `${ids.map((id) => staffName(data, id)).join('·')} - ${route}`).join(' / ')
+}
+
 export function formatTeamDailyLine(data: AppData, items: Schedule[]) {
   const base = items[0]
-  const routes = personRoutes(items).map(([route, ids]) => `${ids.map((id) => staffName(data, id)).join('·')} - ${route}`)
-  return `- [${timeLabel(base)}] [${teamName(data, base.teamId).replace(/팀$/, '')}] ${routes.join(' / ')}`
+  const prefix = base.allDay ? '' : `[${timeLabel(base)}] `
+  return `${prefix}${scheduleRouteText(data, items)}`
 }
 
 export function formatIssueLine(data: AppData, item: Schedule) {
@@ -188,7 +199,7 @@ export function formatIssueLine(data: AppData, item: Schedule) {
 }
 export function formatProjectLine(item: Schedule) {
   const tag = /긴급|urgent/i.test(`${item.title} ${item.description}`) ? '긴급' : '주요'
-  const memo = item.description ? `(${item.description})` : ''
+  const memo = item.description ? ` : ${item.description}` : ''
   return `- [${tag}] ${item.title}${memo}`
 }
 
@@ -202,10 +213,18 @@ export function buildDailyBrief(data: AppData, date = kstToday()) {
     const key = [item.date, item.teamId, item.startTime, item.endTime, item.allDay].join('|')
     groupMap.set(key, [...(groupMap.get(key) || []), item])
   })
-  const teamLines = Array.from(groupMap.values()).sort((a, b) => teamName(data, a[0].teamId).localeCompare(teamName(data, b[0].teamId), 'ko')).map((items) => formatTeamDailyLine(data, items))
+  const teamGroups = Array.from(groupMap.values())
+  const teamLines = briefTeamOrder.map((label) => {
+    const matching = teamGroups.filter((items) => shortTeamLabel(teamName(data, items[0].teamId)) === label)
+    const text = matching.length ? matching.map((items) => formatTeamDailyLine(data, items)).join(' / ') : '미작성'
+    return `- [${label}] ${text}`
+  })
+  const extraTeamLines = teamGroups
+    .filter((items) => !briefTeamOrder.includes(shortTeamLabel(teamName(data, items[0].teamId))))
+    .map((items) => `- [${shortTeamLabel(teamName(data, items[0].teamId))}] ${formatTeamDailyLine(data, items)}`)
   const issueLines = issues.sort((a, b) => titlePriority(a.title) - titlePriority(b.title) || staffName(data, a.ownerId).localeCompare(staffName(data, b.ownerId), 'ko')).map((item) => formatIssueLine(data, item))
   const projectLines = data.schedules.filter((item) => item.type === 'project' && !item.completed && item.date <= date && (item.repeatUntil || item.date) >= date).map(formatProjectLine)
-  return [`*📅 ${date} I.LAB 일정 브리핑*`, '', '*팀일정*', teamLines.length ? teamLines.join('\n') : '- 등록된 팀 일정이 없습니다.', '', '*이슈*', issueLines.length ? issueLines.join('\n') : '- 특이 일정이 없습니다.', '', '*프로젝트 주요 일정*', projectLines.length ? projectLines.join('\n') : '- 진행 중인 주요 프로젝트가 없습니다.'].join('\n')
+  return [`*✏️ [I.LAB Scheduler] ${date} I.LAB 일정 브리핑*`, '', '*📌 주간이슈*', issueLines.length ? issueLines.join('\n') : '- 미작성', '', '*👥 팀일정*', [...teamLines, ...extraTeamLines].join('\n'), '', '*📚  프로젝트 주요 일정*', projectLines.length ? projectLines.join('\n') : '- 미작성'].join('\n')
 }
 
 export function buildRangeBrief(data: AppData, start: string, end: string) {
@@ -215,13 +234,14 @@ export function buildRangeBrief(data: AppData, start: string, end: string) {
 }
 
 export function buildChangeNotice(data: AppData, action: SlackAction, schedule: (Schedule | Partial<Schedule>) & { teamName?: string; ownerName?: string }) {
-  const actionLabel: Record<SlackAction, string> = { create: '등록', update: '수정', delete: '삭제', complete: '완료' }
-  const type = schedule.type === 'project' ? '프로젝트' : '일정'
+  const actionLabel: Record<SlackAction, string> = { create: '신규 등록', update: '수정 등록', delete: '삭제', complete: '완료' }
   const owner = schedule.ownerName || (schedule.ownerId ? staffName(data, schedule.ownerId) : '-')
-  const team = schedule.teamName || (schedule.teamId ? teamName(data, schedule.teamId) : '-')
-  const time = schedule.type === 'project' ? `${schedule.date || '-'}~${schedule.repeatUntil || schedule.date || '-'}` : `${schedule.date || '-'} ${schedule.allDay ? '종일' : `${schedule.startTime || ''}~${schedule.endTime || ''}`}`
-  const issue = schedule.type !== 'project' && schedule.title && ISSUE_TITLES.some((word) => schedule.title?.includes(word)) ? '\n*이슈*\n' + `- [${schedule.title}] ${owner}` : ''
-  return [`*[I.LAB Scheduler] ${type} ${actionLabel[action]}*`, `• 제목: ${schedule.title || '-'}`, `• 팀: ${team}`, `• 담당: ${owner}`, `• 기간/시간: ${time}`, schedule.completed ? '• 상태: 완료' : '', schedule.description ? `• 메모: ${schedule.description}` : '', issue].filter(Boolean).join('\n')
+  const team = shortTeamLabel(schedule.teamName || (schedule.teamId ? teamName(data, schedule.teamId) : '-'))
+  const date = koreanDate(schedule.date)
+  const title = schedule.title || '-'
+  const memo = schedule.description ? ` : ${schedule.description}` : ''
+  if (schedule.type === 'project') return `*✏️ [I.LAB Scheduler] 프로젝트 일정 ${actionLabel[action]}*\n${date} 프로젝트 일정 ${actionLabel[action]} - ${title}${memo}`
+  return `*✏️ [I.LAB Scheduler] 일정 ${actionLabel[action]}*\n${date} 일정 ${actionLabel[action]} - [${team}] ${owner}  ${title}`
 }
 
 export async function postSlack(text: string, responseUrl?: string) {
