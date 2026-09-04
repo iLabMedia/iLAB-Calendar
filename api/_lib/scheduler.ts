@@ -53,8 +53,8 @@ function withDone(text = '', completed = false) { const stripped = stripDone(tex
 function normalizeType(type: unknown): ScheduleType { return type === 'project' ? 'project' : 'event' }
 function normalizeRepeat(type: unknown): RepeatType { return type === 'daily' || type === 'weekly' || type === 'monthly' ? type : 'none' }
 function titlePriority(title: string) {
-  if (OFFICE_TITLES.some((word) => title.includes(word))) return 9
   if (ISSUE_TITLES.some((word) => title.includes(word))) return 0
+  if (OFFICE_TITLES.some((word) => title.includes(word))) return 9
   return 1
 }
 function timeLabel(schedule: Schedule) { return schedule.allDay ? '종일' : `${schedule.startTime}~${schedule.endTime}` }
@@ -180,7 +180,7 @@ const briefTeamOrder = ['CEO', '경영', '기획', '미디어', '테크', '운�
 
 function shortTeamLabel(name: string) { return name.replace(/팀$/, '').trim() || '팀 미지정' }
 function koreanDate(iso = '') {
-  const [, month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || []
+  const [, , month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || []
   return month && day ? `${Number(month)}월 ${Number(day)}일` : iso || '-'
 }
 function scheduleRouteText(data: AppData, items: Schedule[]) {

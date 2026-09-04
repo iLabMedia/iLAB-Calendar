@@ -1,4 +1,4 @@
-import { addDays, buildDailyBrief, buildRangeBrief, fetchAppData, findSchedule, findStaff, helpText, kstToday, makeSchedule, parseSlackBody, postSlack, removeSchedule, staffName, teamName, upsertSchedule, verifySlackSignature, type AppData, type Schedule } from '../_lib/scheduler.js'
+import { addDays, buildChangeNotice, buildDailyBrief, buildRangeBrief, fetchAppData, findSchedule, findStaff, helpText, kstToday, makeSchedule, parseSlackBody, postSlack, removeSchedule, staffName, teamName, upsertSchedule, verifySlackSignature, type AppData, type Schedule } from '../_lib/scheduler.js'
 
 type VercelRequest = { method?: string; body?: unknown; headers?: Record<string, string | string[] | undefined> }
 type VercelResponse = { status: (code: number) => VercelResponse; json: (body: Record<string, unknown>) => void; setHeader: (name: string, value: string) => void }
@@ -77,7 +77,7 @@ async function handleNaturalRegister(data: AppData, text: string) {
     await upsertSchedule(schedule)
     created.push(schedule)
   }
-  await postSlack(`*[I.LAB Scheduler] Slack 일정 등록*\n• 담당: ${staff.name}\n• 일정: ${parsed.title}\n• 날짜: ${parsed.dates.join(', ')}\n• 팀: ${teamName(data, staff.teamId)}`)
+  await postSlack(created.map((schedule) => buildChangeNotice(data, 'create', schedule)).join('\n'))
   return `등록 완료: ${staff.name} - ${parsed.title}\n${created.map((item) => `- ${item.date} / ID \`${item.id.slice(0, 8)}\``).join('\n')}`
 }
 async function handleNaturalUpdate(data: AppData, text: string) {
@@ -93,7 +93,7 @@ async function handleNaturalUpdate(data: AppData, text: string) {
     await upsertSchedule(next)
     updated.push(next)
   }
-  await postSlack(`*[I.LAB Scheduler] Slack 일정 수정*\n• 담당: ${staff.name}\n• 변경 일정: ${parsed.title}\n• 날짜: ${parsed.dates.join(', ')}\n• 팀: ${teamName(data, staff.teamId)}`)
+  await postSlack(updated.map((schedule) => buildChangeNotice(data, 'update', schedule)).join('\n'))
   return `수정 완료: ${staff.name} - ${parsed.title}\n${updated.map((item) => `- ${item.date} / ID \`${item.id.slice(0, 8)}\``).join('\n')}`
 }
 function publicScheduleLines(data: AppData, schedules: Schedule[]) {
@@ -109,7 +109,7 @@ async function handleRegister(data: AppData, args: string[]) {
   const title = parsed.titleTokens.join(' ').trim()
   const schedule = makeSchedule({ title, date, repeatUntil: date, allDay: parsed.allDay, startTime: parsed.startTime, endTime: parsed.endTime, teamId: staff.teamId, ownerId: staff.id, memberIds: [staff.id], createdBy: staff.id })
   await upsertSchedule(schedule)
-  await postSlack(`*[I.LAB Scheduler] Slack 일정 등록*\n• 제목: ${title}\n• 팀: ${teamName(data, staff.teamId)}\n• 담당: ${staff.name}\n• 일시: ${date} ${parsed.allDay ? '종일' : `${parsed.startTime}~${parsed.endTime}`}\n• ID: \`${schedule.id.slice(0, 8)}\``)
+  await postSlack(buildChangeNotice(data, 'create', schedule))
   return `등록 완료: \`${schedule.id.slice(0, 8)}\` ${date} ${staff.name} - ${title}`
 }
 async function handleUpdate(data: AppData, args: string[]) {
@@ -133,7 +133,7 @@ async function handleUpdate(data: AppData, args: string[]) {
     else return '시간 형식은 `종일` 또는 `13:00-15:00` 입니다.'
   }
   await upsertSchedule(next)
-  await postSlack(`*[I.LAB Scheduler] Slack 일정 수정*\n• 제목: ${next.title}\n• 팀: ${teamName(data, next.teamId)}\n• 담당: ${staffName(data, next.ownerId)}\n• 일시: ${next.date} ${next.allDay ? '종일' : `${next.startTime}~${next.endTime}`}\n• ID: \`${next.id.slice(0, 8)}\``)
+  await postSlack(buildChangeNotice(data, 'update', next))
   return `수정 완료: \`${next.id.slice(0, 8)}\` ${next.date} ${staffName(data, next.ownerId)} - ${next.title}`
 }
 async function handleDelete(data: AppData, args: string[]) {
@@ -141,7 +141,7 @@ async function handleDelete(data: AppData, args: string[]) {
   const target = id ? findSchedule(data, id) : undefined
   if (!target) return '삭제 형식: `/일정 삭제 일정ID` — 먼저 `/일정 오늘` 또는 `/일정 2026-09-10`으로 ID를 확인해주세요.'
   await removeSchedule(target.id)
-  await postSlack(`*[I.LAB Scheduler] Slack 일정 삭제*\n• 제목: ${target.title}\n• 팀: ${teamName(data, target.teamId)}\n• 담당: ${staffName(data, target.ownerId)}\n• 일시: ${target.date} ${target.allDay ? '종일' : `${target.startTime}~${target.endTime}`}\n• ID: \`${target.id.slice(0, 8)}\``)
+  await postSlack(buildChangeNotice(data, 'delete', target))
   return `삭제 완료: \`${target.id.slice(0, 8)}\` ${target.title}`
 }
 
