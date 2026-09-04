@@ -84,7 +84,7 @@ defaultData.schedules = [
   makeSchedule({ id: 'sch-3', title: '조명 연출 시안 만들기', type: 'project', teamId: 'team-tech', ownerId: 'staff-dev', createdBy: 'staff-admin', date: addDays(new Date(), -2), repeatUntil: addDays(new Date(), 5), allDay: true, color: '#4285F4', description: '프로젝트 진행 막대 샘플' }),
 ]
 
-function makeSchedule(partial: Partial<Schedule>): Schedule { return { id: '', title: '', type: 'event', date: toISODate(new Date()), startTime: '09:00', endTime: '10:00', allDay: true, teamId: 'team-media', memberIds: [], ownerId: 'staff-admin', projectName: '', location: '', description: '', color: BRAND, repeat: 'none', repeatUntil: '', notifySlack: true, createdBy: 'staff-admin', updatedAt: new Date().toISOString(), ...partial } }
+function makeSchedule(partial: Partial<Schedule>): Schedule { return { id: '', title: '', type: 'event', date: toISODate(new Date()), startTime: '09:00', endTime: '10:00', allDay: true, teamId: 'team-media', memberIds: [], ownerId: 'staff-admin', projectName: '', location: '', description: '', color: BRAND, repeat: 'none', repeatUntil: '', notifySlack: false, createdBy: 'staff-admin', updatedAt: new Date().toISOString(), ...partial } }
 function toISODate(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
 function addDays(date: Date, days: number) { const next = new Date(date); next.setDate(next.getDate() + days); return toISODate(next) }
 function parseISODate(iso: string) { return new Date(`${iso}T00:00:00`) }
