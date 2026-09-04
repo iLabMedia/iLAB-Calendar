@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, FormEvent, MouseEvent } from 'react'
 import './App.css'
 import { deleteScheduleFromSupabase, deleteStaffFromSupabase, deleteTeamFromSupabase, fetchAppDataFromSupabase, isSupabaseConfigured, saveScheduleToSupabase, saveStaffToSupabase, saveTeamToSupabase } from './lib/supabase'
-import { sendSlackNotification, type SlackAction } from './lib/slack'
 
 type Role = 'admin' | 'employee' | 'free'
 type ScheduleType = 'team' | 'event' | 'project'
 type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly'
 type ViewMode = 'calendar' | 'month' | 'today' | 'week' | 'team' | 'mine' | 'project'
+type SlackAction = 'create' | 'update' | 'delete' | 'complete'
+type SlackNotifyResult = { ok?: boolean; skipped?: boolean; error?: string }
 
 type Team = { id: string; name: string; slackChannel: string; color: string }
 type Staff = { id: string; name: string; teamId: string; role: Role; password: string; color?: string }
@@ -178,6 +179,16 @@ function originalId(id: string) { return id.split('@')[0] }
 function clamp(n: number, min: number, max: number) { return Math.max(min, Math.min(max, n)) }
 function loadCachedHolidays(year: number): HolidayInfo {
   try { return JSON.parse(localStorage.getItem(`${HOLIDAY_STORAGE_PREFIX}${year}`) || '{}') } catch { return {} }
+}
+async function sendSlackNotification(action: SlackAction, schedule: Partial<Schedule> & { teamName?: string; ownerName?: string }): Promise<SlackNotifyResult> {
+  const response = await fetch('/api/slack/notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, schedule }),
+  })
+  const result = await response.json().catch((): SlackNotifyResult => ({ ok: false, error: 'invalid_response' })) as SlackNotifyResult
+  if (!result.ok && !result.skipped) throw new Error(result.error || 'slack_notify_failed')
+  return result
 }
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadData())
