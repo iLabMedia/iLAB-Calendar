@@ -185,7 +185,6 @@ function sortSchedulesByTeams(teams: Team[] = []) {
     return a.title.localeCompare(b.title)
   }
 }
-function sortSchedules(a: Schedule, b: Schedule) { return sortSchedulesByTeams()(a, b) }
 function listCount(schedules: Schedule[], start: string, end: string) { return schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, start, end)).length }
 function groupTeamSchedules(schedules: Schedule[], teams: Team[] = []): Schedule[] {
   const groups = new Map<string, Schedule[]>()
