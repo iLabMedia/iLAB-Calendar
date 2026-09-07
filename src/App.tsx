@@ -141,8 +141,19 @@ function getScheduleOccurrences(schedule: Schedule, rangeStart: string, rangeEnd
 }
 function roleLabel(role: Role) { return role === 'admin' ? '관리자' : role === 'employee' ? '임직원' : '프리' }
 const fixedTeamOrder = ['공지', '경영', '기획', '미디어', '테크', '운영해외사업', 'CEO']
+function compactSortText(text = '') { return text.toLowerCase().replace(/팀/g, '').replace(/[\s/_·・.()[\]{}-]/g, '') }
 function teamSortLabel(teamId = '', teams: Team[] = []) {
-  const teamName = teams.find((team) => team.id === teamId)?.name.replace(/팀$/, '')
+  const team = teams.find((team) => team.id === teamId)
+  const raw = team?.name || teamId
+  const compact = compactSortText(raw)
+  if (compact.includes('공지') || compact.includes('알림') || compact.includes('notice')) return '공지'
+  if (compact.includes('경영') || compact.includes('management')) return '경영'
+  if (compact.includes('기획') || compact.includes('plan')) return '기획'
+  if (compact.includes('미디어') || compact.includes('media')) return '미디어'
+  if (compact.includes('테크') || compact.includes('개발') || compact.includes('tech') || compact.includes('dev')) return '테크'
+  if (compact.includes('운영해외사업') || (compact.includes('운영') && compact.includes('해외')) || compact.includes('global') || compact.includes('overseas')) return '운영해외사업'
+  if (compact.includes('ceo') || compact.includes('대표')) return 'CEO'
+  const teamName = team?.name.replace(/팀$/, '')
   if (teamName) return teamName
   const known: Record<string, string> = {
     'team-notice': '공지',
