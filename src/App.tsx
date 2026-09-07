@@ -192,8 +192,8 @@ async function sendSlackNotification(action: SlackAction, schedule: Partial<Sche
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadData())
   const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem(SESSION_KEY) || localStorage.getItem('ilab-media-scheduler-session-v6') || localStorage.getItem('ilab-media-scheduler-session-v5') || localStorage.getItem('ilab-media-scheduler-session-v4') || '')
-  const [loginName, setLoginName] = useState('관리자')
-  const [loginPassword, setLoginPassword] = useState('0000')
+  const [loginName, setLoginName] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [cursor, setCursor] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toISODate(new Date()))
@@ -247,11 +247,13 @@ export default function App() {
         if (cancelled) return
         setData((prev) => ({ ...prev, ...remoteData, slack: prev.slack, settings: prev.settings }))
         setCurrentUserId((previousId) => {
-          const preserved = remoteData.staff.find((staff) => staff.id === previousId)
-          const admin = remoteData.staff.find((staff) => staff.role === 'admin')
-          const nextId = preserved?.id || admin?.id || remoteData.staff[0]?.id || ''
-          if (nextId) localStorage.setItem(SESSION_KEY, nextId)
-          return nextId
+          const storedId = localStorage.getItem(SESSION_KEY) || localStorage.getItem('ilab-media-scheduler-session-v6') || localStorage.getItem('ilab-media-scheduler-session-v5') || localStorage.getItem('ilab-media-scheduler-session-v4') || previousId
+          const preserved = storedId ? remoteData.staff.find((staff) => staff.id === storedId) : undefined
+          if (preserved) {
+            localStorage.setItem(SESSION_KEY, preserved.id)
+            return preserved.id
+          }
+          return ''
         })
         setNewStaff((prev) => ({ ...prev, teamId: remoteData.teams[0]?.id || prev.teamId }))
         setDbStatus('Supabase DB 연결됨')
@@ -454,7 +456,7 @@ export default function App() {
   function updateTeam(id: string, patch: Partial<Team>) { const next = data.teams.find((t) => t.id === id); const updated = next ? { ...next, ...patch } : null; setData((p) => ({ ...p, teams: p.teams.map((t) => t.id === id ? { ...t, ...patch } : t), schedules: p.schedules.map((s) => s.teamId === id && s.type !== 'project' && patch.color ? { ...s, color: patch.color } : s) })); if (updated) saveTeamToSupabase(updated).catch(syncError) }
   function removeTeam(id: string) { if (data.staff.some((s) => s.teamId === id)) { setNotice('소속 직원이 있는 팀은 삭제할 수 없습니다.'); return } if (!confirm('팀을 삭제할까요?')) return; setData((p) => ({ ...p, teams: p.teams.filter((t) => t.id !== id), schedules: p.schedules.filter((s) => s.teamId !== id) })); deleteTeamFromSupabase(id).catch(syncError); setNotice('팀을 삭제했습니다.') }
 
-  if (!currentUser) return <main className="loginPage"><section className="loginCard"><img className="loginLogo" src={data.settings.logoUrl} alt="I.LAB MEDIA" /><h1>Scheduler</h1><p className="subText">팀·일정·프로젝트를 한 곳에서 관리합니다.</p><form onSubmit={login} className="loginForm"><label>직원 이름<input value={loginName} onChange={(e) => setLoginName(e.target.value)} placeholder="관리자 또는 임직원" /></label><label>비밀번호<input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="0000" /></label><label className="checkLine"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /> 자동 로그인 유지</label><button className="primaryBtn">로그인</button></form><div className="sampleBox"></b> 초기 샘플 계정 : 직원이름 / 1111</div>{notice && <p className="notice">{notice}</p>}</section></main>
+  if (!currentUser) return <main className="loginPage"><section className="loginCard"><img className="loginLogo" src={data.settings.logoUrl} alt="I.LAB MEDIA" /><h1>Scheduler</h1><p className="subText">팀·일정·프로젝트를 한 곳에서 관리합니다.</p><form onSubmit={login} className="loginForm"><label>직원 이름<input value={loginName} onChange={(e) => setLoginName(e.target.value)} placeholder="관리자 또는 임직원" /></label><label>비밀번호<input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="0000" /></label><label className="checkLine"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /> 자동 로그인 유지</label><button className="primaryBtn">로그인</button></form><div className="sampleBox">샘플 계정: <b>관리자 / 0000, 임직원 / 1111</b></div>{notice && <p className="notice">{notice}</p>}</section></main>
 
   return <main className="appShell">
     <header className="topBar"><div className="brandHeader"><img src={data.settings.logoUrl} alt="I.LAB MEDIA" /><h1>{data.settings.headerTitle}</h1></div><div className="userPill"><span style={{ backgroundColor: teamColor(currentUser.teamId) }} /><div><b>{currentUser.name}</b><small>{teamName(currentUser.teamId)} · {roleLabel(currentUser.role)} · {dbStatus}</small></div><button onClick={openProfileForm}>내 정보</button><button onClick={logout}>나가기</button></div></header>
