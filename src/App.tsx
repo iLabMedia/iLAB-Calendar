@@ -163,11 +163,15 @@ function teamOrderIndex(teamId = '', teams: Team[] = []) {
 }
 function sortSchedulesByTeams(teams: Team[] = []) {
   return (a: Schedule, b: Schedule) => {
-    const dateTime = `${a.date} ${a.allDay ? '00:00' : a.startTime}`.localeCompare(`${b.date} ${b.allDay ? '00:00' : b.startTime}`)
-    if (dateTime !== 0) return dateTime
+    const dateOrder = a.date.localeCompare(b.date)
+    if (dateOrder !== 0) return dateOrder
     const teamOrder = teamOrderIndex(a.teamId, teams) - teamOrderIndex(b.teamId, teams)
     if (teamOrder !== 0) return teamOrder
-    return teamSortLabel(a.teamId, teams).localeCompare(teamSortLabel(b.teamId, teams)) || a.title.localeCompare(b.title)
+    const teamLabelOrder = teamSortLabel(a.teamId, teams).localeCompare(teamSortLabel(b.teamId, teams))
+    if (teamLabelOrder !== 0) return teamLabelOrder
+    const timeOrder = `${a.allDay ? '00:00' : a.startTime}`.localeCompare(`${b.allDay ? '00:00' : b.startTime}`)
+    if (timeOrder !== 0) return timeOrder
+    return a.title.localeCompare(b.title)
   }
 }
 function sortSchedules(a: Schedule, b: Schedule) { return sortSchedulesByTeams()(a, b) }
