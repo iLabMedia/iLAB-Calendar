@@ -106,7 +106,7 @@ function withStandardTeams(teams: Team[]): Team[] {
 function teamIcon(name: string) { if (name.includes('미디어')) return '🎬'; if (name.includes('경영')) return '💼'; if (name.includes('기획')) return '📝'; if (name.includes('테크') || name.includes('개발')) return '⚙️'; return '🏷️' }
 function shortTeamName(name: string) { return name.replace(/팀$/, '') }
 function stripProjectDoneMark(text = '') { return text.replace(PROJECT_DONE_MARK, '').trim() }
-function isLeaveSchedule(title: string) { return /연차|휴가/.test(title) }
+
 function normalizeSchedule(schedule: Schedule): Schedule {
   const description = schedule.description || ''
   return { ...schedule, type: normalizeType(schedule.type), color: schedule.color || BRAND, repeatUntil: schedule.repeatUntil || schedule.date, completed: Boolean(schedule.completed || description.includes(PROJECT_DONE_MARK)), description: stripProjectDoneMark(description) }
@@ -144,10 +144,7 @@ function sortSchedules(a: Schedule, b: Schedule) { return `${a.date} ${a.allDay 
 function listCount(schedules: Schedule[], start: string, end: string) { return schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, start, end)).length }
 function groupTeamSchedules(schedules: Schedule[]): Schedule[] {
   const groups = new Map<string, Schedule[]>()
-  const singles: Schedule[] = []
   schedules.forEach((schedule) => {
-    const title = schedule.title.trim()
-    if (isLeaveSchedule(title)) { singles.push(schedule); return }
     const key = [schedule.date, schedule.teamId, schedule.startTime, schedule.endTime, schedule.allDay].join('|')
     groups.set(key, [...(groups.get(key) || []), schedule])
   })
@@ -171,11 +168,13 @@ function groupTeamSchedules(schedules: Schedule[]): Schedule[] {
     const base = items[0]
     return { ...base, id: `${base.id}@group`, displayTitle, groupItems: items, memberIds: Array.from(new Set(Array.from(personTitles.keys()))), description: items.map((item) => item.description).filter(Boolean).join(' / ') }
   })
-  return [...grouped, ...singles].sort(sortSchedules)
+  return grouped.sort(sortSchedules)
 }
 function viewFromStat(stat: 'project' | 'today' | 'week', view: ViewMode) { return (stat === 'project' && view === 'project') || (stat === 'today' && view === 'today') || (stat === 'week' && view === 'week') }
-function savedAsTeamEvent(schedule: Schedule) { return schedule.type !== 'project' }
+
 function originalId(id: string) { return id.split('@')[0] }
+function occurrenceDateFromId(id: string) { return id.includes('@') ? id.split('@')[1] : '' }
+function isMultiDaySchedule(schedule: Schedule) { return schedule.type !== 'project' && Boolean(schedule.repeatUntil) && schedule.repeatUntil !== schedule.date }
 function clamp(n: number, min: number, max: number) { return Math.max(min, Math.min(max, n)) }
 function loadCachedHolidays(year: number): HolidayInfo {
   try { return JSON.parse(localStorage.getItem(`${HOLIDAY_STORAGE_PREFIX}${year}`) || '{}') } catch { return {} }
@@ -202,6 +201,7 @@ export default function App() {
   const [teamFilter, setTeamFilter] = useState('all')
   const [editing, setEditing] = useState<Schedule | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [scheduleInsertPosition, setScheduleInsertPosition] = useState<'after' | 'before'>('after')
   const [dayPopupDate, setDayPopupDate] = useState('')
   const [notice, setNotice] = useState('')
   const [newStaff, setNewStaff] = useState({ name: '', teamId: defaultData.teams[0].id, role: 'employee' as Role, password: '1111' })
@@ -312,10 +312,20 @@ export default function App() {
     if (!currentUser) return
     const teamId = currentUser.teamId || data.teams[0]?.id || ''
     setEditing(makeSchedule({ date, repeatUntil: date, type, teamId, ownerId: currentUser.id, memberIds: [currentUser.id], createdBy: currentUser.id, color: teamColor(teamId) }))
+    setScheduleInsertPosition('after')
     setDayPopupDate('')
     setShowForm(true)
   }
-  function openEdit(schedule: Schedule) { const found = data.schedules.find((s) => s.id === originalId(schedule.id)); if (found && canEdit(found)) { setEditing(normalizeSchedule(found)); setDayPopupDate(''); setShowForm(true) } }
+  function openEdit(schedule: Schedule) {
+    const found = data.schedules.find((s) => s.id === originalId(schedule.id))
+    if (found && canEdit(found)) {
+      const occurrenceDate = occurrenceDateFromId(schedule.id)
+      setEditing(normalizeSchedule({ ...found, id: schedule.id, date: occurrenceDate || found.date, repeatUntil: isMultiDaySchedule(found) && occurrenceDate ? occurrenceDate : found.repeatUntil }))
+      setScheduleInsertPosition('after')
+      setDayPopupDate('')
+      setShowForm(true)
+    }
+  }
   function login(event: FormEvent) {
     event.preventDefault()
     const name = loginName.trim()
@@ -350,16 +360,59 @@ export default function App() {
   function saveSchedule(event: FormEvent) {
     event.preventDefault(); if (!editing || !currentUser) return
     const existing = editing.id ? data.schedules.find((schedule) => schedule.id === originalId(editing.id)) : null
-    const teamId = editing.type === 'project' ? editing.teamId : existing?.teamId || editing.teamId || currentUser.teamId
-    const normalized = { ...editing, teamId, color: editing.type === 'project' ? editing.color : teamColor(teamId), endTime: editing.endTime < editing.startTime ? editing.startTime : editing.endTime, repeatUntil: editing.type === 'project' ? (editing.repeatUntil || editing.date) : editing.repeatUntil, title: editing.title.trim() || '일정', memberIds: editing.id ? (editing.memberIds?.length ? editing.memberIds : [editing.ownerId || currentUser.id]) : [editing.ownerId || currentUser.id], projectName: '', location: '', updatedAt: new Date().toISOString(), createdBy: editing.createdBy || currentUser.id, ownerId: editing.ownerId || currentUser.id }
-    const isNew = !normalized.id
-    const mergeTarget = isNew && savedAsTeamEvent(normalized) ? data.schedules.find((schedule) => savedAsTeamEvent(schedule) && schedule.teamId === normalized.teamId && schedule.title.trim() === normalized.title.trim() && schedule.date === normalized.date && (schedule.repeatUntil || schedule.date) === (normalized.repeatUntil || normalized.date) && schedule.startTime === normalized.startTime && schedule.endTime === normalized.endTime && schedule.allDay === normalized.allDay) : null
-    const saved = mergeTarget ? { ...mergeTarget, memberIds: Array.from(new Set([...(mergeTarget.memberIds || []), normalized.ownerId])), updatedAt: new Date().toISOString() } : { ...normalized, id: normalized.id || makeId('sch') }
-    setData((prev) => ({ ...prev, schedules: mergeTarget ? prev.schedules.map((s) => s.id === saved.id ? saved : s) : isNew ? [...prev.schedules, saved] : prev.schedules.map((s) => s.id === saved.id ? saved : s) }))
+    const assignee = data.staff.find((staff) => staff.id === editing.ownerId) || currentUser
+    const teamId = editing.type === 'project' ? editing.teamId : assignee.teamId || existing?.teamId || editing.teamId || currentUser.teamId
+    const occurrenceDate = occurrenceDateFromId(editing.id)
+    const editingOneDayFromRange = Boolean(existing && isMultiDaySchedule(existing) && occurrenceDate)
+    const normalized = { ...editing, teamId, color: editing.type === 'project' ? editing.color : teamColor(teamId), endTime: editing.endTime < editing.startTime ? editing.startTime : editing.endTime, repeatUntil: editing.type === 'project' ? (editing.repeatUntil || editing.date) : (editingOneDayFromRange ? editing.date : editing.repeatUntil), title: editing.title.trim() || '일정', memberIds: [assignee.id], projectName: '', location: '', updatedAt: new Date().toISOString(), createdBy: editing.createdBy || currentUser.id, ownerId: assignee.id }
+    const isNew = !existing || editingOneDayFromRange
+    const saved = { ...normalized, id: editingOneDayFromRange || !normalized.id ? makeId('sch') : originalId(normalized.id) }
+    const splitParts: Schedule[] = []
+    if (existing && editingOneDayFromRange) {
+      const targetDate = occurrenceDate || editing.date
+      if (existing.date < targetDate) splitParts.push({ ...existing, id: makeId('sch'), repeatUntil: addDays(parseISODate(targetDate), -1), updatedAt: new Date().toISOString() })
+      if ((existing.repeatUntil || existing.date) > targetDate) splitParts.push({ ...existing, id: makeId('sch'), date: addDays(parseISODate(targetDate), 1), repeatUntil: existing.repeatUntil, updatedAt: new Date().toISOString() })
+    }
+    setData((prev) => {
+      let schedules = editingOneDayFromRange && existing ? prev.schedules.filter((s) => s.id !== existing.id) : existing ? prev.schedules.map((s) => s.id === saved.id ? saved : s) : [...prev.schedules]
+      if (editingOneDayFromRange) schedules = [...schedules, ...splitParts]
+      if (!existing || editingOneDayFromRange) {
+        const sameRoute = (s: Schedule) => s.type !== 'project' && saved.type !== 'project' && s.date === saved.date && s.teamId === saved.teamId && s.startTime === saved.startTime && s.endTime === saved.endTime && s.allDay === saved.allDay && (s.ownerId === saved.ownerId || s.memberIds.includes(saved.ownerId))
+        const indexes = schedules.map((item, index) => sameRoute(item) ? index : -1).filter((index) => index >= 0)
+        if (indexes.length) {
+          const insertAt = scheduleInsertPosition === 'before' ? indexes[0] : indexes[indexes.length - 1] + 1
+          schedules = [...schedules.slice(0, insertAt), saved, ...schedules.slice(insertAt)]
+        } else schedules = [...schedules, saved]
+      }
+      return { ...prev, schedules }
+    })
+    if (editingOneDayFromRange && existing) {
+      deleteScheduleFromSupabase(existing.id).catch(syncError)
+      splitParts.forEach((part) => saveScheduleToSupabase(part).catch(syncError))
+    }
     saveScheduleToSupabase(saved).catch(syncError)
     setShowForm(false); setEditing(null); setNotice(isNew ? '일정이 등록되었습니다.' : '일정이 수정되었습니다.'); maybeNotifySlack(isNew ? 'create' : 'update', saved)
   }
-  function deleteSchedule(id: string) { const target = data.schedules.find((s) => s.id === originalId(id)); if (!target || !canEdit(target)) return; if (!confirm('이 일정을 삭제할까요?')) return; setData((p) => ({ ...p, schedules: p.schedules.filter((s) => s.id !== target.id) })); deleteScheduleFromSupabase(target.id).catch(syncError); setNotice('일정이 삭제되었습니다.'); maybeNotifySlack('delete', target); setShowForm(false); setEditing(null) }
+  function deleteSchedule(id: string) {
+    const target = data.schedules.find((s) => s.id === originalId(id))
+    if (!target || !canEdit(target)) return
+    const occurrenceDate = occurrenceDateFromId(id)
+    const deleteOneDayFromRange = Boolean(isMultiDaySchedule(target) && occurrenceDate)
+    if (!confirm(deleteOneDayFromRange ? `${occurrenceDate} 일정만 삭제할까요?` : '이 일정을 삭제할까요?')) return
+    const sendDeleteNotice = confirm('Slack 삭제 알림을 발송할까요?\n확인 = 발송 / 취소 = 발송 안 함')
+    const splitParts: Schedule[] = []
+    if (deleteOneDayFromRange) {
+      if (target.date < occurrenceDate) splitParts.push({ ...target, id: makeId('sch'), repeatUntil: addDays(parseISODate(occurrenceDate), -1), updatedAt: new Date().toISOString() })
+      if ((target.repeatUntil || target.date) > occurrenceDate) splitParts.push({ ...target, id: makeId('sch'), date: addDays(parseISODate(occurrenceDate), 1), repeatUntil: target.repeatUntil, updatedAt: new Date().toISOString() })
+    }
+    setData((p) => ({ ...p, schedules: [...p.schedules.filter((s) => s.id !== target.id), ...splitParts] }))
+    deleteScheduleFromSupabase(target.id).catch(syncError)
+    splitParts.forEach((part) => saveScheduleToSupabase(part).catch(syncError))
+    const noticeTarget = { ...target, date: occurrenceDate || target.date, repeatUntil: occurrenceDate || target.repeatUntil, notifySlack: true }
+    setNotice(sendDeleteNotice ? '일정이 삭제되었고 Slack 알림을 발송합니다.' : '일정이 삭제되었습니다. Slack 알림은 보내지 않았습니다.')
+    if (sendDeleteNotice) maybeNotifySlack('delete', noticeTarget)
+    setShowForm(false); setEditing(null)
+  }
   function completeProject(id: string) {
     const target = data.schedules.find((schedule) => schedule.id === originalId(id))
     if (!target || target.type !== 'project' || !canEdit(target)) return
@@ -413,7 +466,7 @@ export default function App() {
     {isAdmin && <section id="adminPanel" className="adminGrid"><div className="adminCard"><h2>직원 등록</h2><form onSubmit={addStaff} className="stackForm"><input value={newStaff.name} onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })} placeholder="직원 이름" /><select value={newStaff.teamId} onChange={(e) => setNewStaff({ ...newStaff, teamId: e.target.value })}>{data.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select><select value={newStaff.role} onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value as Role })}><option value="admin">관리자</option><option value="employee">임직원</option><option value="free">프리</option></select><input value={newStaff.password} onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })} placeholder="초기 비밀번호" /><button className="primaryBtn">직원 등록</button></form></div><div className="adminCard"><h2>팀 생성/추가</h2><form onSubmit={addTeam} className="stackForm"><input value={newTeam.name} onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })} placeholder="팀명" /><input value={newTeam.slackChannel} onChange={(e) => setNewTeam({ ...newTeam, slackChannel: e.target.value })} placeholder="Slack 채널 예: #미디어팀" /><ColorPalette label="팀 색상" value={newTeam.color} onChange={(color) => setNewTeam({ ...newTeam, color })} /><button className="primaryBtn">팀 생성</button></form></div><div className="adminCard wide"><h2>직원 리스트</h2><div className="staffGrid">{data.staff.map((s) => <div className="staffMiniCard" key={s.id}><input value={s.name} onChange={(e) => updateStaff(s.id, { name: e.target.value })} /><select value={s.teamId} onChange={(e) => updateStaff(s.id, { teamId: e.target.value })}>{data.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select><select value={s.role} onChange={(e) => updateStaff(s.id, { role: e.target.value as Role })}><option value="admin">관리자</option><option value="employee">임직원</option><option value="free">프리</option></select><input value={s.password} onChange={(e) => updateStaff(s.id, { password: e.target.value })} /><button onClick={() => removeStaff(s.id)} type="button">삭제</button></div>)}</div></div><div className="adminCard wide"><h2>팀 리스트</h2><div className="editList">{data.teams.map((team) => <div className="editRow team" key={team.id}><input value={team.name} onChange={(e) => updateTeam(team.id, { name: e.target.value })} /><input value={team.slackChannel} onChange={(e) => updateTeam(team.id, { slackChannel: e.target.value })} /><ColorPalette compact label="색상" value={team.color} onChange={(color) => updateTeam(team.id, { color })} /><button type="button" onClick={() => removeTeam(team.id)}>삭제</button></div>)}</div></div></section>}
     {dayPopupDate && <DayScheduleModal date={dayPopupDate} schedules={dayPopupSchedules} scheduleTitle={scheduleTitle} displayColor={displayColor} onClose={() => setDayPopupDate('')} onAdd={() => openNewSchedule(dayPopupDate)} onEdit={openEdit} />}
     {showProfileForm && <ProfileForm currentUser={currentUser} teams={data.teams} profileDraft={profileDraft} setProfileDraft={setProfileDraft} onClose={() => setShowProfileForm(false)} onSubmit={saveProfile} />}
-    {showForm && editing && <ScheduleForm editing={editing} currentUser={currentUser} teamName={teamName} teamColor={teamColor} onTypeChange={onTypeChange} onStartTimeChange={onStartTimeChange} onChange={setEditing} onClose={() => setShowForm(false)} onSubmit={saveSchedule} onDelete={deleteSchedule} onComplete={completeProject} />}
+    {showForm && editing && <ScheduleForm editing={editing} currentUser={currentUser} staff={data.staff} teams={data.teams} scheduleInsertPosition={scheduleInsertPosition} setScheduleInsertPosition={setScheduleInsertPosition} teamName={teamName} teamColor={teamColor} onTypeChange={onTypeChange} onStartTimeChange={onStartTimeChange} onChange={setEditing} onClose={() => setShowForm(false)} onSubmit={saveSchedule} onDelete={deleteSchedule} onComplete={completeProject} />}
   </main>
 }
 
@@ -434,12 +487,17 @@ function ProfileForm({ currentUser, teams, profileDraft, setProfileDraft, onClos
   return <div className="modalBackdrop" onMouseDown={(event: MouseEvent<HTMLDivElement>) => { if (event.target === event.currentTarget) onClose() }}><form className="profileForm" onSubmit={onSubmit}><div className="formHead"><h2>내 정보 수정</h2><button type="button" onClick={onClose}>×</button></div><div className="profileNotice"><b>{currentUser.name}</b><small>내 팀과 비밀번호만 변경할 수 있습니다.</small></div><label>내 팀<select value={profileDraft.teamId} onChange={(e) => setProfileDraft({ ...profileDraft, teamId: e.target.value })}>{teams.map((team) => <option key={team.id} value={team.id}>{teamIcon(team.name)} {team.name}</option>)}</select></label><label>비밀번호<input type="password" value={profileDraft.password} onChange={(e) => setProfileDraft({ ...profileDraft, password: e.target.value })} placeholder="새 비밀번호" /></label><div className="formActions"><button className="primaryBtn">저장</button><button type="button" className="ghost" onClick={onClose}>취소</button></div></form></div>
 }
 
-function ScheduleForm({ editing, currentUser, teamName, teamColor, onTypeChange, onStartTimeChange, onChange, onClose, onSubmit, onDelete, onComplete }: { editing: Schedule; currentUser: Staff; teamName: (id: string) => string; teamColor: (id: string) => string; onTypeChange: (type: ScheduleType) => void; onStartTimeChange: (value: string) => void; onChange: (schedule: Schedule) => void; onClose: () => void; onSubmit: (event: FormEvent) => void; onDelete: (id: string) => void; onComplete: (id: string) => void }) {
-  const userTeamName = teamName(editing.type !== 'project' ? editing.teamId : currentUser.teamId)
-  const autoTeamColor = teamColor(editing.type !== 'project' ? editing.teamId : currentUser.teamId)
-  return <div className="modalBackdrop" onMouseDown={(event: MouseEvent<HTMLDivElement>) => { if (event.target === event.currentTarget) onClose() }}><form className="scheduleForm" onSubmit={onSubmit}><div className="formHead"><h2>{editing.id ? '일정 수정' : '일정 등록'}</h2><button type="button" onClick={onClose}>×</button></div><div className="typeTabs two"><button type="button" className={editing.type !== 'project' ? 'active' : ''} onClick={() => onTypeChange('event')}>일정</button><button type="button" className={editing.type === 'project' ? 'active' : ''} onClick={() => onTypeChange('project')}>프로젝트</button></div>{editing.type !== 'project' && <div className="autoTeamBox" style={{ '--team-color': autoTeamColor } as CSSProperties}><span>{teamIcon(userTeamName)}</span><b>{userTeamName}</b><small>{editing.id ? '기존 일정의 팀이 유지됩니다.' : '내 팀으로 자동 등록됩니다.'}</small></div>}<label>일정<input value={editing.title} onChange={(e) => onChange({ ...editing, title: e.target.value })} placeholder="예: 사무실, 외근, 회의" /></label><div className="twoCol"><label>날짜<input type="date" value={editing.date} onChange={(e) => onChange({ ...editing, date: e.target.value, repeatUntil: editing.repeatUntil < e.target.value ? e.target.value : editing.repeatUntil })} /></label><label>종료일<input type="date" min={editing.date} value={editing.repeatUntil || editing.date} onChange={(e) => onChange({ ...editing, repeatUntil: e.target.value < editing.date ? editing.date : e.target.value })} /></label></div>{editing.type !== 'project' && <label className="checkLine"><input type="checkbox" checked={editing.allDay} onChange={(e) => onChange({ ...editing, allDay: e.target.checked })} /> 하루종일</label>}{editing.type !== 'project' && !editing.allDay && <div className="twoCol"><label>시작<input type="time" value={editing.startTime} onChange={(e) => onStartTimeChange(e.target.value)} /></label><label>종료<input type="time" min={editing.startTime} value={editing.endTime} onChange={(e) => onChange({ ...editing, endTime: e.target.value < editing.startTime ? editing.startTime : e.target.value })} /></label></div>}{editing.type === 'project' && <ColorPalette label="프로젝트 색상" value={editing.color} onChange={(color) => onChange({ ...editing, color })} />}<label>상세<textarea value={editing.description} onChange={(e) => onChange({ ...editing, description: e.target.value })} placeholder="상세 메모" /></label><div className="twoCol"><label>반복<select value={editing.repeat} onChange={(e) => onChange({ ...editing, repeat: e.target.value as RepeatType })}><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>{editing.repeat !== 'none' && <label>반복 종료<input type="date" min={editing.date} value={editing.repeatUntil || editing.date} onChange={(e) => onChange({ ...editing, repeatUntil: e.target.value })} /></label>}</div><label className="checkLine"><input type="checkbox" checked={editing.notifySlack} onChange={(e) => onChange({ ...editing, notifySlack: e.target.checked })} /> #아이랩일정 Slack 알림 보내기</label><div className="formActions scheduleFormActions"><div><button className="primaryBtn">저장</button>{editing.id && <button type="button" className="ghost" onClick={() => onDelete(editing.id)}>삭제</button>}</div>{editing.id && editing.type === 'project' && !editing.completed && <button type="button" className="completeBtn" onClick={() => onComplete(editing.id)}>프로젝트 완료</button>}</div></form></div>
+function ScheduleForm({ editing, currentUser, staff, teams, scheduleInsertPosition, setScheduleInsertPosition, teamName, teamColor, onTypeChange, onStartTimeChange, onChange, onClose, onSubmit, onDelete, onComplete }: { editing: Schedule; currentUser: Staff; staff: Staff[]; teams: Team[]; scheduleInsertPosition: 'after' | 'before'; setScheduleInsertPosition: (position: 'after' | 'before') => void; teamName: (id: string) => string; teamColor: (id: string) => string; onTypeChange: (type: ScheduleType) => void; onStartTimeChange: (value: string) => void; onChange: (schedule: Schedule) => void; onClose: () => void; onSubmit: (event: FormEvent) => void; onDelete: (id: string) => void; onComplete: (id: string) => void }) {
+  const canAssignStaff = currentUser.role === 'admin'
+  const selectedStaff = staff.find((person) => person.id === editing.ownerId) || currentUser
+  const userTeamName = teamName(editing.type !== 'project' ? selectedStaff.teamId : currentUser.teamId)
+  const autoTeamColor = teamColor(editing.type !== 'project' ? selectedStaff.teamId : currentUser.teamId)
+  function changeOwner(ownerId: string) {
+    const nextStaff = staff.find((person) => person.id === ownerId) || selectedStaff
+    onChange({ ...editing, ownerId: nextStaff.id, memberIds: [nextStaff.id], teamId: nextStaff.teamId, color: editing.type === 'project' ? editing.color : teamColor(nextStaff.teamId) })
+  }
+  return <div className="modalBackdrop" onMouseDown={(event: MouseEvent<HTMLDivElement>) => { if (event.target === event.currentTarget) onClose() }}><form className="scheduleForm" onSubmit={onSubmit}><div className="formHead"><h2>{editing.id ? '일정 수정' : '일정 등록'}</h2><button type="button" onClick={onClose}>×</button></div><div className="typeTabs two"><button type="button" className={editing.type !== 'project' ? 'active' : ''} onClick={() => onTypeChange('event')}>일정</button><button type="button" className={editing.type === 'project' ? 'active' : ''} onClick={() => onTypeChange('project')}>프로젝트</button></div>{editing.type !== 'project' && <div className="autoTeamBox" style={{ '--team-color': autoTeamColor } as CSSProperties}><span>{teamIcon(userTeamName)}</span><b>{userTeamName}</b><small>{canAssignStaff ? '관리자는 담당자를 선택해 다른 직원 일정도 등록/수정할 수 있습니다.' : editing.id ? '기존 일정의 팀이 유지됩니다.' : '내 팀으로 자동 등록됩니다.'}</small></div>}{canAssignStaff && editing.type !== 'project' && <label>담당자 선택<select value={editing.ownerId} onChange={(e) => changeOwner(e.target.value)}>{teams.map((team) => <optgroup key={team.id} label={team.name}>{staff.filter((person) => person.teamId === team.id).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</optgroup>)}</select></label>}<label>일정<input value={editing.title} onChange={(e) => onChange({ ...editing, title: e.target.value })} placeholder="예: 사무실, 외근, 회의" /></label>{editing.type !== 'project' && <label>일정 추가 위치<select value={scheduleInsertPosition} onChange={(e) => setScheduleInsertPosition(e.target.value as 'after' | 'before')}><option value="after">기존 일정 뒤에 추가 / 현재 위치 유지</option><option value="before">기존 일정 앞에 추가</option></select><small className="fieldHint">예: 앞에 추가하면 외근&gt;사무실, 뒤에 추가하면 사무실&gt;외근처럼 표시됩니다.</small></label>}<div className="twoCol"><label>날짜<input type="date" value={editing.date} onChange={(e) => onChange({ ...editing, date: e.target.value, repeatUntil: editing.repeatUntil < e.target.value ? e.target.value : editing.repeatUntil })} /></label><label>종료일<input type="date" min={editing.date} value={editing.repeatUntil || editing.date} onChange={(e) => onChange({ ...editing, repeatUntil: e.target.value < editing.date ? editing.date : e.target.value })} /></label></div>{editing.type !== 'project' && <label className="checkLine"><input type="checkbox" checked={editing.allDay} onChange={(e) => onChange({ ...editing, allDay: e.target.checked })} /> 하루종일</label>}{editing.type !== 'project' && !editing.allDay && <div className="twoCol"><label>시작<input type="time" value={editing.startTime} onChange={(e) => onStartTimeChange(e.target.value)} /></label><label>종료<input type="time" min={editing.startTime} value={editing.endTime} onChange={(e) => onChange({ ...editing, endTime: e.target.value < editing.startTime ? editing.startTime : e.target.value })} /></label></div>}{editing.type === 'project' && <ColorPalette label="프로젝트 색상" value={editing.color} onChange={(color) => onChange({ ...editing, color })} />}<label>상세<textarea value={editing.description} onChange={(e) => onChange({ ...editing, description: e.target.value })} placeholder="상세 메모" /></label><div className="twoCol"><label>반복<select value={editing.repeat} onChange={(e) => onChange({ ...editing, repeat: e.target.value as RepeatType })}><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></label>{editing.repeat !== 'none' && <label>반복 종료<input type="date" min={editing.date} value={editing.repeatUntil || editing.date} onChange={(e) => onChange({ ...editing, repeatUntil: e.target.value })} /></label>}</div><label className="checkLine"><input type="checkbox" checked={editing.notifySlack} onChange={(e) => onChange({ ...editing, notifySlack: e.target.checked })} /> #아이랩일정 Slack 알림 보내기</label><div className="formActions scheduleFormActions"><div><button className="primaryBtn">저장</button>{editing.id && <button type="button" className="ghost" onClick={() => onDelete(editing.id)}>삭제</button>}</div>{editing.id && editing.type === 'project' && !editing.completed && <button type="button" className="completeBtn" onClick={() => onComplete(editing.id)}>프로젝트 완료</button>}</div></form></div>
 }
-
 function MonthCalendar({ monthDays, cursor, today, selectedDate, holidays, officialHolidays, occurrences, scheduleTitle, displayColor, onDay, onEdit, onPrev, onNext }: { monthDays: Date[]; cursor: Date; today: string; selectedDate: string; holidays: HolidayInfo; officialHolidays: HolidayInfo; occurrences: Schedule[]; scheduleTitle: (schedule: Schedule) => string; displayColor: (schedule: Schedule) => string; onDay: (iso: string) => void; onEdit: (schedule: Schedule) => void; onPrev: () => void; onNext: () => void }) {
   return <section className="calendarPanel full monthPanel"><div className="calendarHeader"><button onClick={onPrev}>‹</button><h2>월간 캘린더 · {cursor.getFullYear()}년 {cursor.getMonth() + 1}월</h2><button onClick={onNext}>›</button></div><div className="weekdays">{['일', '월', '화', '수', '목', '금', '토'].map((d) => <b key={d}>{d}</b>)}</div><div className="calendarGrid monthGrid">{monthDays.map((day) => { const iso = toISODate(day); const holiday = holidays[iso]; const officialHoliday = officialHolidays[iso]; const isSolarTermOnly = Boolean(solarTerms[iso] && !officialHoliday); const daySchedules = occurrences.filter((s) => s.date === iso).sort(sortSchedules); return <div key={iso} className={`dayCell ${day.getMonth() !== cursor.getMonth() ? 'mutedMonth' : ''} ${iso === today ? 'today' : ''} ${iso === selectedDate ? 'selected' : ''} ${officialHoliday ? 'holiday' : ''} ${isSolarTermOnly ? 'solarTerm' : ''}`} onClick={() => onDay(iso)}><button className="dayNum" onClick={(e) => { e.stopPropagation(); onDay(iso) }}>{day.getDate()}</button>{holiday && <strong className={officialHoliday ? 'holidayName' : 'solarTermName'}>{holiday}</strong>}<div className="chips">{daySchedules.slice(0, 4).map((s) => <button key={s.id} className={`eventChip ${s.allDay ? 'filled' : 'timed'}`} style={{ '--event-color': displayColor(s) } as CSSProperties} onClick={(e) => { e.stopPropagation(); onEdit(s) }}>{s.allDay ? scheduleTitle(s) : `${s.startTime} ${scheduleTitle(s)}`}</button>)}{daySchedules.length > 4 && <small className="moreCount">+{daySchedules.length - 4}</small>}</div></div> })}</div></section>
 }
