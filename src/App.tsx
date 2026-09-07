@@ -140,9 +140,39 @@ function getScheduleOccurrences(schedule: Schedule, rangeStart: string, rangeEnd
   return result
 }
 function roleLabel(role: Role) { return role === 'admin' ? '관리자' : role === 'employee' ? '임직원' : '프리' }
-function sortSchedules(a: Schedule, b: Schedule) { return `${a.date} ${a.allDay ? '00:00' : a.startTime}`.localeCompare(`${b.date} ${b.allDay ? '00:00' : b.startTime}`) }
+const fixedTeamOrder = ['공지', '경영', '기획', '미디어', '테크', '운영해외사업', 'CEO']
+function teamSortLabel(teamId = '', teams: Team[] = []) {
+  const teamName = teams.find((team) => team.id === teamId)?.name.replace(/팀$/, '')
+  if (teamName) return teamName
+  const known: Record<string, string> = {
+    'team-notice': '공지',
+    'team-management': '경영',
+    'team-plan': '기획',
+    'team-media': '미디어',
+    'team-tech': '테크',
+    'team-global': '운영해외사업',
+    'team-overseas': '운영해외사업',
+    'team-ceo': 'CEO',
+  }
+  return known[teamId] || teamId.replace(/^team-/, '').replace(/팀$/, '')
+}
+function teamOrderIndex(teamId = '', teams: Team[] = []) {
+  const label = teamSortLabel(teamId, teams)
+  const index = fixedTeamOrder.findIndex((name) => label === name || label.includes(name) || name.includes(label))
+  return index >= 0 ? index : fixedTeamOrder.length
+}
+function sortSchedulesByTeams(teams: Team[] = []) {
+  return (a: Schedule, b: Schedule) => {
+    const dateTime = `${a.date} ${a.allDay ? '00:00' : a.startTime}`.localeCompare(`${b.date} ${b.allDay ? '00:00' : b.startTime}`)
+    if (dateTime !== 0) return dateTime
+    const teamOrder = teamOrderIndex(a.teamId, teams) - teamOrderIndex(b.teamId, teams)
+    if (teamOrder !== 0) return teamOrder
+    return teamSortLabel(a.teamId, teams).localeCompare(teamSortLabel(b.teamId, teams)) || a.title.localeCompare(b.title)
+  }
+}
+function sortSchedules(a: Schedule, b: Schedule) { return sortSchedulesByTeams()(a, b) }
 function listCount(schedules: Schedule[], start: string, end: string) { return schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, start, end)).length }
-function groupTeamSchedules(schedules: Schedule[]): Schedule[] {
+function groupTeamSchedules(schedules: Schedule[], teams: Team[] = []): Schedule[] {
   const groups = new Map<string, Schedule[]>()
   schedules.forEach((schedule) => {
     const key = [schedule.date, schedule.teamId, schedule.startTime, schedule.endTime, schedule.allDay].join('|')
@@ -168,7 +198,7 @@ function groupTeamSchedules(schedules: Schedule[]): Schedule[] {
     const base = items[0]
     return { ...base, id: `${base.id}@group`, displayTitle, groupItems: items, memberIds: Array.from(new Set(Array.from(personTitles.keys()))), description: items.map((item) => item.description).filter(Boolean).join(' / ') }
   })
-  return grouped.sort(sortSchedules)
+  return grouped.sort(sortSchedulesByTeams(teams))
 }
 function viewFromStat(stat: 'project' | 'today' | 'week', view: ViewMode) { return (stat === 'project' && view === 'project') || (stat === 'today' && view === 'today') || (stat === 'week' && view === 'week') }
 
@@ -220,15 +250,15 @@ export default function App() {
   const monthDays = useMemo(() => getMonthDays(cursor), [cursor])
   const rangeStart = toISODate(twoWeekDays[0])
   const rangeEnd = toISODate(twoWeekDays[13])
-  const visibleOccurrences = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, rangeStart, rangeEnd))), [data.schedules, rangeStart, rangeEnd])
-  const projectSchedules = data.schedules.filter((s) => s.type === 'project').sort(sortSchedules)
+  const visibleOccurrences = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, rangeStart, rangeEnd)), data.teams), [data.schedules, data.teams, rangeStart, rangeEnd])
+  const projectSchedules = data.schedules.filter((s) => s.type === 'project').sort(sortSchedulesByTeams(data.teams))
   const mainProjectSchedules = projectSchedules.filter((project) => !project.completed && (project.repeatUntil || project.date) > addDays(new Date(), -14))
   const monthStart = toISODate(monthDays[0])
   const monthEnd = toISODate(monthDays[41])
-  const monthOccurrences = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, monthStart, monthEnd))), [data.schedules, monthStart, monthEnd])
-  const selectedSchedules = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, selectedDate, selectedDate))), [data.schedules, selectedDate])
-  const todaySchedules = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, today, today))), [data.schedules, today])
-  const dayPopupSchedules = dayPopupDate ? groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, dayPopupDate, dayPopupDate))) : []
+  const monthOccurrences = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, monthStart, monthEnd)), data.teams), [data.schedules, data.teams, monthStart, monthEnd])
+  const selectedSchedules = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, selectedDate, selectedDate)), data.teams), [data.schedules, data.teams, selectedDate])
+  const todaySchedules = useMemo(() => groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, today, today)), data.teams), [data.schedules, data.teams, today])
+  const dayPopupSchedules = dayPopupDate ? groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, dayPopupDate, dayPopupDate)), data.teams) : []
   const listSchedules = groupTeamSchedules(data.schedules.filter((s) => s.type !== 'project').flatMap((s) => getScheduleOccurrences(s, today, addDays(new Date(), 60))).filter((s) => {
     if (!currentUser) return false
     if (view === 'today') return s.date === today
@@ -236,7 +266,7 @@ export default function App() {
     if (view === 'team') return teamFilter === 'all' || s.teamId === teamFilter
     if (view === 'mine') return s.ownerId === currentUser.id || s.createdBy === currentUser.id
     return false
-  }).sort(sortSchedules))
+  }).sort(sortSchedulesByTeams(data.teams)), data.teams)
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
   useEffect(() => {
