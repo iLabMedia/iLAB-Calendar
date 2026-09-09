@@ -89,7 +89,12 @@ function toISODate(date: Date) { return `${date.getFullYear()}-${String(date.get
 function addDays(date: Date, days: number) { const next = new Date(date); next.setDate(next.getDate() + days); return toISODate(next) }
 function parseISODate(iso: string) { return new Date(`${iso}T00:00:00`) }
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토']
-function weekdayLabel(iso: string) { return weekdayLabels[parseISODate(iso).getDay()] || '' }
+function weekdayLabel(iso: string) {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return ''
+  const [, year, month, day] = match.map(Number)
+  return weekdayLabels[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] || ''
+}
 function dateWithWeekday(iso: string) { return `${iso} (${weekdayLabel(iso)})` }
 function rangeTitle(days: Date[]) { const first = days[0], last = days[days.length - 1]; return `${first.getFullYear()}년 ${first.getMonth() + 1}월 ${first.getDate()}일 - ${last.getMonth() + 1}월 ${last.getDate()}일` }
 function makeId(prefix: string) { if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID(); return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}` }
@@ -563,10 +568,17 @@ function hexToHsl(hexColor: string) {
 }
 function ColorPalette({ label, value, onChange, compact = false }: { label: string; value: string; onChange: (color: string) => void; compact?: boolean }) {
   const safeColor = normalizeHexColor(value)
+  const [codeDraft, setCodeDraft] = useState(safeColor)
+  useEffect(() => { setCodeDraft(safeColor) }, [safeColor])
   const hsl = hexToHsl(safeColor)
   const angle = hsl.hue * Math.PI / 180
   const radius = Math.min(48, hsl.saturation * 0.48)
   const pointerStyle = { '--picker-color': safeColor, '--picker-x': `${50 + Math.cos(angle) * radius}%`, '--picker-y': `${50 + Math.sin(angle) * radius}%` } as CSSProperties
+  function applyColor(color: string) {
+    const normalized = normalizeHexColor(color)
+    setCodeDraft(normalized)
+    onChange(normalized)
+  }
   function pickFromWheel(event: PointerEvent<HTMLButtonElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
     const x = event.clientX - rect.left - rect.width / 2
@@ -574,12 +586,15 @@ function ColorPalette({ label, value, onChange, compact = false }: { label: stri
     const distance = Math.min(Math.sqrt(x * x + y * y), rect.width / 2)
     const hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
     const saturation = clamp(distance / (rect.width / 2) * 100, 0, 100)
-    onChange(hslToHex(hue, saturation, 50))
+    applyColor(hslToHex(hue, saturation, 50))
   }
   function changeCode(color: string) {
-    if (/^#[0-9a-fA-F]{3}$/.test(color) || /^#[0-9a-fA-F]{6}$/.test(color)) onChange(normalizeHexColor(color))
+    const next = color.startsWith('#') ? color : `#${color}`
+    setCodeDraft(next.toUpperCase())
+    if (/^#[0-9a-fA-F]{3}$/.test(next) || /^#[0-9a-fA-F]{6}$/.test(next)) onChange(normalizeHexColor(next))
   }
-  return <div className={`paletteField colorWheelField ${compact ? 'compact' : ''}`}><span>{label}</span><details><summary><i style={{ backgroundColor: safeColor }} />색상 선택 <code>{safeColor}</code></summary><div className="colorWheelPanel"><button type="button" className="colorWheel" style={pointerStyle} onPointerDown={pickFromWheel} onPointerMove={(event) => { if (event.buttons === 1) pickFromWheel(event) }} aria-label="RGB 색상 휠"><span /></button><div className="colorCodeRow"><input type="color" value={safeColor} onChange={(event) => onChange(event.target.value.toUpperCase())} aria-label="색상 선택" /><input value={safeColor} onChange={(event) => changeCode(event.target.value)} onBlur={(event) => onChange(normalizeHexColor(event.target.value))} placeholder="#5D2E8D" aria-label="색상 코드" /><b style={{ backgroundColor: safeColor }}>{safeColor}</b></div></div></details></div>
+  function commitCode() { applyColor(codeDraft) }
+  return <div className={`paletteField colorWheelField ${compact ? 'compact' : ''}`}><span>{label}</span><details><summary><i className="colorSwatch" style={{ backgroundColor: safeColor }} /><b>색상 선택</b><code>{safeColor}</code></summary><div className="colorWheelPanel"><button type="button" className="colorWheel" style={pointerStyle} onPointerDown={pickFromWheel} onPointerMove={(event) => { if (event.buttons === 1) pickFromWheel(event) }} aria-label="RGB 색상 휠"><span /></button><div className="colorCodeRow"><input type="color" value={safeColor} onChange={(event) => applyColor(event.target.value)} aria-label="색상 선택" /><input type="text" value={codeDraft} onChange={(event) => changeCode(event.target.value)} onBlur={commitCode} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitCode() } }} placeholder="#5D2E8D" aria-label="색상 코드 직접 입력" /><b style={{ backgroundColor: safeColor }}>{safeColor}</b></div><small className="colorHelp">색상 휠을 클릭하거나 #FF6600처럼 직접 입력하세요.</small></div></details></div>
 }
 
 function ScheduleList({ schedules, staffName, scheduleTitle, dateLabel, displayColor, onEdit, onDelete, canEdit }: { schedules: Schedule[]; teamName: (id: string) => string; staffName: (id: string) => string; scheduleTitle: (schedule: Schedule) => string; dateLabel: (iso: string) => string; displayColor: (schedule: Schedule) => string; onEdit: (schedule: Schedule) => void; onDelete: (id: string) => void; canEdit: (schedule: Schedule) => boolean }) {

@@ -144,9 +144,11 @@ textarea { min-height: 78px; resize: vertical; }
 .staffMiniCard button { grid-column: 1 / -1; }
 .paletteField { position: relative; display: grid; gap: 6px; color: #222; font-size: 14px; font-weight: 800; text-align: left; }
 .paletteField.compact { min-width: 180px; }
-.paletteField summary { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 1px solid #ded6eb; border-radius: 14px; padding: 9px 12px; background: #fff; list-style: none; }
+.paletteField summary { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 1px solid #ded6eb; border-radius: 14px; padding: 9px 12px; background: #fff; list-style: none; cursor: pointer; }
 .paletteField summary::-webkit-details-marker { display: none; }
-.paletteField i { width: 22px; height: 22px; border: 1px solid rgba(0,0,0,.16); border-radius: 50%; }
+.paletteField summary b { color: #24172f; font-size: 13px; }
+.paletteField summary code { margin-left: auto; border-radius: 999px; padding: 4px 8px; background: #f4edf8; color: #5D2E8D; font-size: 12px; font-weight: 900; }
+.paletteField i,.colorSwatch { flex: 0 0 auto; width: 24px; height: 24px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 4px 10px rgba(0,0,0,.16); }
 .paletteGrid { position: absolute; z-index: 40; display: grid; grid-template-columns: repeat(8,34px); gap: 10px; width: max-content; max-width: min(420px, calc(100vw - 50px)); margin-top: 8px; border: 1px solid #e5d8f7; border-radius: 18px; padding: 14px; background: white; box-shadow: 0 18px 45px rgba(0,0,0,.18); }
 .paletteGrid button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(0,0,0,.12); border-radius: 50%; padding: 0; color: white; font-weight: 900; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
 .paletteGrid button.selected { outline: 3px solid #2f86c6; outline-offset: 2px; }
@@ -158,6 +160,7 @@ textarea { min-height: 78px; resize: vertical; }
 .colorCodeRow input[type="color"] { width: 44px; height: 42px; border: 1px solid #ded6eb; border-radius: 12px; padding: 3px; background: #fff; }
 .colorCodeRow input[type="text"],.colorCodeRow input:not([type]) { height: 42px; border: 1px solid #ded6eb; border-radius: 12px; padding: 0 12px; color: #111; font-weight: 900; text-transform: uppercase; }
 .colorCodeRow b { grid-column: 1 / -1; display: block; border-radius: 12px; padding: 8px 10px; color: white; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.colorHelp { color: #766b80; font-size: 12px; font-weight: 700; text-align: center; }
 .toast { position: fixed; top: 18px; left: 50%; z-index: 30; transform: translateX(-50%); max-width: calc(100vw - 32px); border-radius: 999px; padding: 12px 18px; background: #21142f; color: white; box-shadow: 0 18px 45px rgba(0,0,0,.22); font-weight: 800; }
 .modalBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 18px; background: rgba(18,10,28,.52); }
 .scheduleForm,.dayModal,.profileForm { width: min(620px,100%); max-height: 92svh; overflow: auto; border-radius: 28px; padding: 22px; background: white; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
