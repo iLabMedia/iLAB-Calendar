@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, FormEvent, MouseEvent } from 'react'
+import type { CSSProperties, FormEvent, MouseEvent, PointerEvent } from 'react'
 import './App.css'
 import { deleteScheduleFromSupabase, deleteStaffFromSupabase, deleteTeamFromSupabase, fetchAppDataFromSupabase, isSupabaseConfigured, saveScheduleToSupabase, saveStaffToSupabase, saveTeamToSupabase } from './lib/supabase'
 
@@ -533,8 +533,53 @@ function AnnouncementTicker({ announcements, scheduleTitle, dateLabel, onEdit }:
   return <section className="announcementStrip"><div className="announcementHead"><b>공지사항</b><span>{announcements.length}</span></div><div className="announcementViewport"><div className="announcementTrack">{announcements.map((item) => <button key={item.id} onClick={() => onEdit(item)}><em>{dateLabel(item.date)}</em><span>{scheduleTitle(item).replace(/^🏷️ \[공지\]\s*/, '')}</span></button>)}</div></div></section>
 }
 
+function normalizeHexColor(color = '') {
+  const value = color.trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) return value.toUpperCase()
+  if (/^#[0-9a-fA-F]{3}$/.test(value)) return `#${value.slice(1).split('').map((char) => char + char).join('')}`.toUpperCase()
+  return BRAND
+}
+function hslToHex(hue: number, saturation: number, lightness: number) {
+  const s = saturation / 100
+  const l = lightness / 100
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs((hue / 60) % 2 - 1))
+  const m = l - c / 2
+  const [r, g, b] = hue < 60 ? [c, x, 0] : hue < 120 ? [x, c, 0] : hue < 180 ? [0, c, x] : hue < 240 ? [0, x, c] : hue < 300 ? [x, 0, c] : [c, 0, x]
+  return `#${[r, g, b].map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, '0')).join('')}`.toUpperCase()
+}
+function hexToHsl(hexColor: string) {
+  const hex = normalizeHexColor(hexColor).slice(1)
+  const r = parseInt(hex.slice(0, 2), 16) / 255
+  const g = parseInt(hex.slice(2, 4), 16) / 255
+  const b = parseInt(hex.slice(4, 6), 16) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const lightness = (max + min) / 2
+  const delta = max - min
+  if (!delta) return { hue: 0, saturation: 0, lightness: lightness * 100 }
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1))
+  const hue = max === r ? 60 * (((g - b) / delta) % 6) : max === g ? 60 * ((b - r) / delta + 2) : 60 * ((r - g) / delta + 4)
+  return { hue: (hue + 360) % 360, saturation: saturation * 100, lightness: lightness * 100 }
+}
 function ColorPalette({ label, value, onChange, compact = false }: { label: string; value: string; onChange: (color: string) => void; compact?: boolean }) {
-  return <div className={`paletteField ${compact ? 'compact' : ''}`}><span>{label}</span><details><summary><i style={{ backgroundColor: value }} />색상 선택</summary><div className="paletteGrid">{paletteColors.map((color) => <button type="button" key={color} className={color.toLowerCase() === value.toLowerCase() ? 'selected' : ''} style={{ backgroundColor: color }} onClick={() => onChange(color)} aria-label={color}>{color.toLowerCase() === value.toLowerCase() ? '✓' : ''}</button>)}</div></details></div>
+  const safeColor = normalizeHexColor(value)
+  const hsl = hexToHsl(safeColor)
+  const angle = hsl.hue * Math.PI / 180
+  const radius = Math.min(48, hsl.saturation * 0.48)
+  const pointerStyle = { '--picker-color': safeColor, '--picker-x': `${50 + Math.cos(angle) * radius}%`, '--picker-y': `${50 + Math.sin(angle) * radius}%` } as CSSProperties
+  function pickFromWheel(event: PointerEvent<HTMLButtonElement>) {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = event.clientX - rect.left - rect.width / 2
+    const y = event.clientY - rect.top - rect.height / 2
+    const distance = Math.min(Math.sqrt(x * x + y * y), rect.width / 2)
+    const hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
+    const saturation = clamp(distance / (rect.width / 2) * 100, 0, 100)
+    onChange(hslToHex(hue, saturation, 50))
+  }
+  function changeCode(color: string) {
+    if (/^#[0-9a-fA-F]{3}$/.test(color) || /^#[0-9a-fA-F]{6}$/.test(color)) onChange(normalizeHexColor(color))
+  }
+  return <div className={`paletteField colorWheelField ${compact ? 'compact' : ''}`}><span>{label}</span><details><summary><i style={{ backgroundColor: safeColor }} />색상 선택 <code>{safeColor}</code></summary><div className="colorWheelPanel"><button type="button" className="colorWheel" style={pointerStyle} onPointerDown={pickFromWheel} onPointerMove={(event) => { if (event.buttons === 1) pickFromWheel(event) }} aria-label="RGB 색상 휠"><span /></button><div className="colorCodeRow"><input type="color" value={safeColor} onChange={(event) => onChange(event.target.value.toUpperCase())} aria-label="색상 선택" /><input value={safeColor} onChange={(event) => changeCode(event.target.value)} onBlur={(event) => onChange(normalizeHexColor(event.target.value))} placeholder="#5D2E8D" aria-label="색상 코드" /><b style={{ backgroundColor: safeColor }}>{safeColor}</b></div></div></details></div>
 }
 
 function ScheduleList({ schedules, staffName, scheduleTitle, dateLabel, displayColor, onEdit, onDelete, canEdit }: { schedules: Schedule[]; teamName: (id: string) => string; staffName: (id: string) => string; scheduleTitle: (schedule: Schedule) => string; dateLabel: (iso: string) => string; displayColor: (schedule: Schedule) => string; onEdit: (schedule: Schedule) => void; onDelete: (id: string) => void; canEdit: (schedule: Schedule) => boolean }) {
