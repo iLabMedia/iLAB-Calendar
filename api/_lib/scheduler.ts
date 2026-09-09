@@ -179,9 +179,19 @@ function personRoutes(items: Schedule[]) {
 const briefTeamOrder = ['CEO', '경영', '기획', '미디어', '테크', '운영해외사업']
 
 function shortTeamLabel(name: string) { return name.replace(/팀$/, '').trim() || '팀 미지정' }
+const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토']
+function weekdayOf(iso = '') {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ''
+  return weekdayLabels[new Date(`${iso}T00:00:00+09:00`).getDay()] || ''
+}
 function koreanDate(iso = '') {
   const [, , month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || []
-  return month && day ? `${Number(month)}월 ${Number(day)}일` : iso || '-'
+  const weekday = weekdayOf(iso)
+  return month && day ? `${Number(month)}월 ${Number(day)}일${weekday ? `(${weekday})` : ''}` : iso || '-'
+}
+function isoDateWithWeekday(iso = '') {
+  const weekday = weekdayOf(iso)
+  return iso ? `${iso}${weekday ? `(${weekday})` : ''}` : '-'
 }
 function scheduleRouteText(data: AppData, items: Schedule[]) {
   return personRoutes(items).map(([route, ids]) => `${ids.map((id) => staffName(data, id)).join('·')} - ${route}`).join(' / ')
@@ -224,7 +234,7 @@ export function buildDailyBrief(data: AppData, date = kstToday()) {
     .map((items) => `- [${shortTeamLabel(teamName(data, items[0].teamId))}] ${formatTeamDailyLine(data, items)}`)
   const issueLines = issues.sort((a, b) => titlePriority(a.title) - titlePriority(b.title) || staffName(data, a.ownerId).localeCompare(staffName(data, b.ownerId), 'ko')).map((item) => formatIssueLine(data, item))
   const projectLines = data.schedules.filter((item) => item.type === 'project' && !item.completed && item.date <= date && (item.repeatUntil || item.date) >= date).map(formatProjectLine)
-  return [`*✏️ [I.LAB Scheduler] ${date} I.LAB 일정 브리핑*`, '', '*📌 주간이슈*', issueLines.length ? issueLines.join('\n') : '- 미작성', '', '*👥 팀일정*', [...teamLines, ...extraTeamLines].join('\n'), '', '*📚  프로젝트 주요 일정*', projectLines.length ? projectLines.join('\n') : '- 미작성'].join('\n')
+  return [`*✏️ [I.LAB Scheduler] ${isoDateWithWeekday(date)} I.LAB 일정 브리핑*`, '', '*📌 주간이슈*', issueLines.length ? issueLines.join('\n') : '- 미작성', '', '*👥 팀일정*', [...teamLines, ...extraTeamLines].join('\n'), '', '*📚  프로젝트 주요 일정*', projectLines.length ? projectLines.join('\n') : '- 미작성'].join('\n')
 }
 
 export function buildRangeBrief(data: AppData, start: string, end: string) {

@@ -34,6 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const payload = parseBody(req.body)
+    if (payload.schedule?.notifySlack === false) return res.status(200).json({ ok: false, skipped: true, error: 'notify_slack_disabled' })
     const data = await fetchAppData().catch(() => ({ teams: [], staff: [], schedules: [] }))
     const text = buildChangeNotice(data, payload.action || 'create', payload.schedule || {})
     const result = await postSlack(text)
