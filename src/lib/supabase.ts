@@ -30,7 +30,9 @@ export type Schedule = {
 }
 export type SlackSetting = { enabled: boolean; webhookUrl: string; defaultChannel: string; notifyOnCreate: boolean; notifyOnUpdate: boolean; notifyOnDelete: boolean; morningBrief: boolean }
 export type AppSetting = { logoUrl: string; headerTitle: string }
-export type AppData = { teams: Team[]; staff: Staff[]; schedules: Schedule[]; slack: SlackSetting; settings: AppSetting }
+export type CompanyDocCategory = '회사정책' | '복지' | '경비' | '장비'
+export type CompanyDoc = { id: string; category: CompanyDocCategory; title: string; summary: string; content: string; isPublished: boolean; createdAt: string; updatedAt: string; updatedBy: string }
+export type AppData = { teams: Team[]; staff: Staff[]; schedules: Schedule[]; companyDocs: CompanyDoc[]; slack: SlackSetting; settings: AppSetting }
 
 function cleanEnvValue(value: string | undefined) {
   return (value || '').trim().replace(/^['"]|['"]$/g, '')
@@ -101,6 +103,20 @@ function rowToSchedule(row: Record<string, unknown>): Schedule {
   }
 }
 
+function rowToCompanyDoc(row: Record<string, unknown>): CompanyDoc {
+  return {
+    id: String(row.id),
+    category: (['회사정책', '복지', '경비', '장비'].includes(String(row.category)) ? row.category : '회사정책') as CompanyDocCategory,
+    title: String(row.title || '제목 없는 회사정보'),
+    summary: String(row.summary || ''),
+    content: String(row.content || ''),
+    isPublished: Boolean(row.is_published ?? true),
+    createdAt: String(row.created_at || new Date().toISOString()),
+    updatedAt: String(row.updated_at || new Date().toISOString()),
+    updatedBy: String(row.updated_by || ''),
+  }
+}
+
 function teamToRow(team: Team) {
   return { id: team.id, name: team.name, slack_channel: team.slackChannel, color: team.color }
 }
@@ -132,21 +148,41 @@ function scheduleToRow(schedule: Schedule) {
 
 export async function fetchAppDataFromSupabase(): Promise<AppData> {
   if (!supabase) throw new Error('Supabase 환경변수가 설정되지 않았습니다.')
-  const [teamsResult, staffResult, schedulesResult] = await Promise.all([
+  const [teamsResult, staffResult, schedulesResult, companyDocsResult] = await Promise.all([
     supabase.from('teams').select('*').order('created_at', { ascending: true }),
     supabase.from('staff').select('*').eq('is_active', true).order('created_at', { ascending: true }),
     supabase.from('schedules').select('*').order('start_date', { ascending: true }),
+    supabase.from('company_docs').select('*').order('updated_at', { ascending: false }),
   ])
   if (teamsResult.error) throw teamsResult.error
   if (staffResult.error) throw staffResult.error
   if (schedulesResult.error) throw schedulesResult.error
+  if (companyDocsResult.error && companyDocsResult.error.code !== '42P01') throw companyDocsResult.error
   return {
     teams: (teamsResult.data || []).map(rowToTeam),
     staff: (staffResult.data || []).map(rowToStaff),
     schedules: (schedulesResult.data || []).map(rowToSchedule),
+    companyDocs: companyDocsResult.error ? [] : (companyDocsResult.data || []).map(rowToCompanyDoc),
     slack: emptySlack,
     settings: emptySettings,
   }
+}
+
+
+function companyDocToRow(doc: CompanyDoc) {
+  return { id: doc.id, category: doc.category, title: doc.title, summary: doc.summary || null, content: doc.content || null, is_published: doc.isPublished, updated_by: doc.updatedBy || null }
+}
+
+export async function saveCompanyDocToSupabase(doc: CompanyDoc) {
+  if (!supabase) return
+  const { error } = await supabase.from('company_docs').upsert(companyDocToRow(doc))
+  if (error) throw error
+}
+
+export async function deleteCompanyDocFromSupabase(id: string) {
+  if (!supabase) return
+  const { error } = await supabase.from('company_docs').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function saveTeamToSupabase(team: Team) {

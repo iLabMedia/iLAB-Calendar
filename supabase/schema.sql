@@ -56,6 +56,19 @@ create table if not exists public.schedules (
   check (end_time is null or start_time is null or end_time >= start_time)
 );
 
+
+create table if not exists public.company_docs (
+  id uuid primary key default gen_random_uuid(),
+  category text not null default '회사정책' check (category in ('회사정책','복지','경비','장비')),
+  title text not null,
+  summary text,
+  content text,
+  is_published boolean not null default true,
+  updated_by uuid references public.staff(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.slack_channels (
   id uuid primary key default gen_random_uuid(),
   team_id uuid references public.teams(id) on delete cascade,
@@ -96,6 +109,10 @@ for each row execute function public.set_updated_at();
 
 drop trigger if exists set_schedules_updated_at on public.schedules;
 create trigger set_schedules_updated_at before update on public.schedules
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_company_docs_updated_at on public.company_docs;
+create trigger set_company_docs_updated_at before update on public.company_docs
 for each row execute function public.set_updated_at();
 
 drop trigger if exists set_slack_channels_updated_at on public.slack_channels;
@@ -143,6 +160,8 @@ alter table public.staff enable row level security;
 alter table public.schedules enable row level security;
 alter table public.slack_channels enable row level security;
 alter table public.slack_logs enable row level security;
+alter table public.company_docs enable row level security;
+
 
 drop policy if exists "mvp read teams" on public.teams;
 create policy "mvp read teams" on public.teams for select using (true);
@@ -168,3 +187,10 @@ drop policy if exists "mvp read slack_logs" on public.slack_logs;
 create policy "mvp read slack_logs" on public.slack_logs for select using (true);
 drop policy if exists "mvp write slack_logs" on public.slack_logs;
 create policy "mvp write slack_logs" on public.slack_logs for all using (true) with check (true);
+
+
+drop policy if exists "mvp read company docs" on public.company_docs;
+create policy "mvp read company docs" on public.company_docs for select using (true);
+drop policy if exists "mvp write company docs" on public.company_docs;
+create policy "mvp write company docs" on public.company_docs for all using (true) with check (true);
+
