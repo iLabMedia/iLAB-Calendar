@@ -216,9 +216,41 @@ textarea { min-height: 78px; resize: vertical; }
 .companyDocCard footer b { display: flex; gap: 6px; }
 .companyDocCard footer button { border: 1px solid #e0d4ee; border-radius: 999px; background: #fff; color: #3d2659; padding: 7px 11px; font-weight: 900; }
 
+
+.companyChecks { display: flex; flex-wrap: wrap; gap: 10px; }
+.imageUpload { display: grid; gap: 6px; border: 1px dashed #d8c8eb; border-radius: 18px; padding: 12px; background: #fbf8ff; font-weight: 900; color: #3d2659; }
+.imageUpload input { border: 0; padding: 0; background: transparent; }
+.imageUpload small { color: #7a6b8a; font-weight: 700; }
+.companyImagePreview,.companyDetailImages { display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap: 10px; }
+.companyImagePreview figure { position: relative; margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid #eadff5; background: #fff; }
+.companyImagePreview img,.companyDetailImages img { width: 100%; height: 150px; object-fit: cover; border-radius: 16px; border: 1px solid #eadff5; }
+.companyImagePreview button { position: absolute; right: 8px; top: 8px; border: 0; border-radius: 999px; background: rgba(0,0,0,.62); color: white; padding: 5px 8px; font-size: 12px; font-weight: 900; }
+.companyDocLayout { display: grid; grid-template-columns: 340px minmax(0,1fr); gap: 14px; align-items: start; }
+.companyDocList,.companyDocDetail { border: 1px solid #eadff5; border-radius: 24px; background: #fff; padding: 16px; box-shadow: 0 10px 30px rgba(52,29,82,.06); }
+.companyDocList { display: grid; gap: 8px; max-height: 680px; overflow: auto; }
+.companyDocList h3 { margin: 0 0 6px; color: #241934; }
+.companyDocList button { display: grid; gap: 4px; text-align: left; border: 1px solid #eadff5; border-radius: 16px; background: #fbf8ff; padding: 12px; color: #241934; font-weight: 900; }
+.companyDocList button small { color: #7a6b8a; font-weight: 800; }
+.companyDocList button.active { border-color: #5D2E8D; background: #f1e8fb; box-shadow: inset 4px 0 0 #5D2E8D; }
+.companyDocList button.pinned { background: #fff8e7; border-color: #f4d48a; }
+.companyDocDetail { min-height: 380px; display: grid; gap: 12px; align-content: start; }
+.companyDocDetail.private { opacity: .7; }
+.companyDocMeta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.companyDocMeta em,.companyDocMeta strong,.companyDocMeta small { border-radius: 999px; padding: 5px 10px; font-style: normal; font-size: 12px; font-weight: 900; }
+.companyDocMeta em { background: #f0e6fb; color: #5D2E8D; }
+.companyDocMeta strong { background: #ffe8a3; color: #7a4a00; }
+.companyDocMeta small { background: #eee; color: #555; }
+.companyDocDetail h3 { margin: 0; font-size: clamp(22px,3vw,32px); color: #111; }
+.companyDocDetail p { margin: 0; color: #5a5067; font-weight: 800; }
+.companyDocDetail pre { margin: 0; min-height: 160px; border-radius: 18px; padding: 16px; background: #fbf8ff; color: #241934; font-family: inherit; line-height: 1.7; white-space: pre-wrap; }
+.companyDocDetail .emptyContent { color: #8a8094; }
+.companyDocDetail footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: #766b80; font-size: 12px; font-weight: 800; }
+.companyDocDetail footer b { display: flex; gap: 6px; }
+.companyDocDetail footer button { border: 1px solid #e0d4ee; border-radius: 999px; background: #fff; color: #3d2659; padding: 7px 11px; font-weight: 900; }
+
 @media (max-width: 1100px) { .scheduleCard{grid-template-columns:120px 1fr auto}.scheduleCard .desc{grid-column:2 / 3}.staffGrid{grid-template-columns:repeat(2,1fr)}.mainBelowGrid{grid-template-columns:1fr} }
 @media (max-width: 900px) {
-  .companyHero{align-items:flex-start;flex-direction:column;padding:18px}.companyToolbar{grid-template-columns:1fr}.companyDocs{grid-template-columns:1fr}.companyDocCard footer{align-items:flex-start;flex-direction:column}.companyCategories{padding:6px}
+  .companyHero{align-items:flex-start;flex-direction:column;padding:18px}.companyToolbar{grid-template-columns:1fr}.companyDocs{grid-template-columns:1fr}.companyDocLayout{grid-template-columns:1fr}.companyDocList{max-height:280px}.companyDocDetail footer{align-items:flex-start;flex-direction:column}.companyDocCard footer{align-items:flex-start;flex-direction:column}.companyCategories{padding:6px}
   .appShell{padding:6px}.announcementStrip{grid-template-columns:1fr;margin:8px auto;padding:8px 10px}.announcementHead{justify-content:space-between}.announcementViewport{height:24px}.announcementTrack button{height:24px}.announcementTrack span{font-size:12px}.topBar{min-height:72px;gap:6px;padding:10px 10px;border-radius:22px}.brandHeader{gap:7px;flex:1 1 0;min-width:0}.brandHeader img{width:clamp(112px,32vw,160px);max-height:34px;flex:0 1 auto}.topBar h1{font-size:clamp(14px,3.6vw,20px);line-height:1;letter-spacing:-.06em;overflow:visible;white-space:nowrap}.userPill{min-width:0;max-width:190px;flex:0 1 190px;gap:5px;padding:5px 6px}.userPill > span{width:22px;height:22px}.userPill b{font-size:11px}.userPill small{font-size:8.5px}.userPill button{padding:5px 7px;font-size:10px}.quickStats{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.quickStats button{min-height:54px;gap:3px;flex-direction:column;padding:7px 4px;border-radius:16px}.quickStats b{font-size:28px;order:2}.quickStats span{font-size:12px;order:1}.quickStats .solid{font-size:14px;line-height:1.15}.viewTabs{gap:5px;padding:6px;margin-bottom:8px}.viewTabs button{padding:7px 10px;font-size:13px}.calendarPanel,.listPanel,.adminCard{padding:8px;border-radius:18px}.calendarHeader{display:grid;grid-template-columns:38px 1fr 54px 38px;gap:5px}.calendarHeader h2{font-size:14px;text-align:center;white-space:normal}.calendarHeader button{min-width:36px;height:36px;padding:0 8px;font-size:16px}.weekdays,.calendarGrid{gap:3px}.weekdays{font-size:11px}.calendarGrid.twoWeeks .dayCell{min-height:118px}.dayCell{padding:29px 3px 4px;border-radius:10px}.dayNum{top:4px;left:4px;width:21px;height:21px;font-size:11px;font-weight:600}.holidayName,.solarTermName{top:7px;left:27px;right:3px;font-size:8px}.chips{gap:3px}.eventChip{padding:2px 3px;font-size:8.5px;font-weight:500;border-radius:6px}.eventChip.timed{padding-left:12px}.eventChip.timed::before{left:4px;width:5px;height:5px}.panelTitle h2{font-size:17px;white-space:nowrap}.scheduleCard{grid-template-columns:72px minmax(0,1fr);gap:8px;min-height:0;padding:10px}.scheduleMain{border-right:0;padding-right:0}.scheduleMain h3{font-size:15px}.scheduleCard .desc{grid-column:1 / -1}.cardActions{grid-column:1 / -1;justify-content:flex-start}.adminGrid{grid-template-columns:1fr}.adminCard.wide{grid-column:auto}.staffGrid{grid-template-columns:1fr}.editRow,.editRow.team{grid-template-columns:1fr}.twoCol{grid-template-columns:1fr}.scheduleForm,.dayModal,.profileForm{padding:16px;border-radius:22px}.projectPanel{overflow-x:auto}.projectRows{min-width:900px}.projectDays{min-width:900px}.mainBelowGrid{gap:8px;margin-top:8px}.projectMiniList button{padding:8px 10px}.monthGrid .dayCell{min-height:88px}.monthGrid .eventChip{font-size:7.5px}.paletteGrid{grid-template-columns:repeat(6,30px);gap:8px}.paletteGrid button{width:30px;height:30px}
 }
 @media (max-width: 520px) {

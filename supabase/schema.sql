@@ -59,15 +59,26 @@ create table if not exists public.schedules (
 
 create table if not exists public.company_docs (
   id uuid primary key default gen_random_uuid(),
-  category text not null default '회사정책' check (category in ('회사정책','복지','경비','장비')),
+  category text not null default '회사정책' check (category in ('회사정책','경비','복지','기타')),
   title text not null,
   summary text,
   content text,
   is_published boolean not null default true,
+  is_pinned boolean not null default false,
+  image_urls jsonb not null default '[]'::jsonb,
   updated_by uuid references public.staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+
+-- company_docs 확장/카테고리 보정: 기존 데이터 삭제 없이 새 구조로 맞춥니다.
+alter table public.company_docs add column if not exists is_pinned boolean not null default false;
+alter table public.company_docs add column if not exists image_urls jsonb not null default '[]'::jsonb;
+update public.company_docs set category = '기타' where category = '장비';
+alter table public.company_docs drop constraint if exists company_docs_category_check;
+alter table public.company_docs add constraint company_docs_category_check check (category in ('회사정책','경비','복지','기타'));
+create index if not exists company_docs_pinned_updated_idx on public.company_docs (is_pinned desc, updated_at desc);
 
 create table if not exists public.slack_channels (
   id uuid primary key default gen_random_uuid(),

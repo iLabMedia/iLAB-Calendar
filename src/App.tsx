@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, FormEvent, MouseEvent, PointerEvent } from 'react'
+import type { ChangeEvent, CSSProperties, FormEvent, MouseEvent, PointerEvent } from 'react'
 import './App.css'
 import { deleteCompanyDocFromSupabase, deleteScheduleFromSupabase, deleteStaffFromSupabase, deleteTeamFromSupabase, fetchAppDataFromSupabase, isSupabaseConfigured, saveCompanyDocToSupabase, saveScheduleToSupabase, saveStaffToSupabase, saveTeamToSupabase } from './lib/supabase'
 
@@ -9,8 +9,8 @@ type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly'
 type ViewMode = 'calendar' | 'month' | 'today' | 'week' | 'mine' | 'project' | 'company'
 type SlackAction = 'create' | 'update' | 'delete' | 'complete'
 type SlackNotifyResult = { ok?: boolean; skipped?: boolean; error?: string }
-type CompanyDocCategory = '회사정책' | '복지' | '경비' | '장비'
-type CompanyDoc = { id: string; category: CompanyDocCategory; title: string; summary: string; content: string; isPublished: boolean; createdAt: string; updatedAt: string; updatedBy: string }
+type CompanyDocCategory = '회사정책' | '경비' | '복지' | '기타'
+type CompanyDoc = { id: string; category: CompanyDocCategory; title: string; summary: string; content: string; isPublished: boolean; isPinned: boolean; imageUrls: string[]; createdAt: string; updatedAt: string; updatedBy: string }
 
 type Team = { id: string; name: string; slackChannel: string; color: string }
 type Staff = { id: string; name: string; teamId: string; role: Role; password: string; color?: string }
@@ -50,8 +50,9 @@ const BRAND = '#5D2E8D'
 const DEFAULT_LOGO = '/ilabmedia-logo.png'
 const PROJECT_DONE_MARK = '[[PROJECT_DONE]]'
 const repeatLabels: Record<RepeatType, string> = { none: '반복 없음', daily: '매일', weekly: '매주', monthly: '매월' }
-const companyDocCategories: CompanyDocCategory[] = ['회사정책', '복지', '경비', '장비']
-const emptyCompanyDoc = (updatedBy = ''): CompanyDoc => ({ id: '', category: '회사정책', title: '', summary: '', content: '', isPublished: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy })
+const companyDocCategories: CompanyDocCategory[] = ['회사정책', '경비', '복지', '기타']
+const normalizeCompanyDocCategory = (category: unknown): CompanyDocCategory => category === '경비' || category === '복지' || category === '기타' ? category : '회사정책'
+const emptyCompanyDoc = (updatedBy = ''): CompanyDoc => ({ id: '', category: '회사정책', title: '', summary: '', content: '', isPublished: true, isPinned: false, imageUrls: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy })
 const paletteColors = ['#000000','#3D3D3D','#5A5A5A','#8F8F8F','#B9B9B9','#E8E8E8','#F3F6F3','#FFFFFF','#F63B35','#8A5600','#D88900','#80D600','#2F86C6','#16577D','#673197','#C90070','#F2C2C4','#F8E2C5','#FFF1BF','#CFE4C9','#C7DADC','#C6D9EA','#CFC3DE','#DDBDCC','#E88F92','#F6C993','#FFE195','#B5D5A8','#A3C7CD','#9FC4E5','#B4A6D1','#D39AB5','#E15F5D','#F3A850','#FDD052','#83BC72','#6FA1AB','#5D9CD5','#846CC0','#BF6E98','#D90000','#F0932B','#F6C027','#60A345','#397F88','#3686C9','#6347A2','#B1497F','#9E0000','#BB6100','#B88C00','#2E751D','#07535B','#0E5A92','#311C78','#79144A','#850000','#8A4B00','#806500','#205C12','#06424A','#0A4673','#23115B','#5A0F36']
 const fallbackHolidays: HolidayInfo = {
   '2026-01-01': '신정', '2026-02-16': '설날 연휴', '2026-02-17': '설날', '2026-02-18': '설날 연휴', '2026-03-01': '삼일절', '2026-03-02': '대체공휴일',
@@ -130,7 +131,7 @@ function loadData(): AppData {
   try {
     const parsed = JSON.parse(raw)
     const teams = withStandardTeams((parsed.teams || defaultData.teams).map(normalizeTeam))
-    return { ...defaultData, ...parsed, companyDocs: parsed.companyDocs || [], teams, staff: (parsed.staff || defaultData.staff).map((s: Staff) => ({ ...s, teamId: s.teamId === 'team-dev' ? 'team-tech' : s.teamId, role: normalizeRole(s.role) })), schedules: (parsed.schedules || defaultData.schedules).map((s: Schedule) => normalizeSchedule({ ...s, teamId: s.teamId === 'team-dev' ? 'team-tech' : s.teamId })), settings: { ...defaultData.settings, ...parsed.settings } }
+    return { ...defaultData, ...parsed, companyDocs: (parsed.companyDocs || []).map((doc: Partial<CompanyDoc> & { category?: unknown }) => ({ ...emptyCompanyDoc(), ...doc, category: normalizeCompanyDocCategory(doc.category), isPinned: Boolean(doc.isPinned), imageUrls: Array.isArray(doc.imageUrls) ? doc.imageUrls : [] })), teams, staff: (parsed.staff || defaultData.staff).map((s: Staff) => ({ ...s, teamId: s.teamId === 'team-dev' ? 'team-tech' : s.teamId, role: normalizeRole(s.role) })), schedules: (parsed.schedules || defaultData.schedules).map((s: Schedule) => normalizeSchedule({ ...s, teamId: s.teamId === 'team-dev' ? 'team-tech' : s.teamId })), settings: { ...defaultData.settings, ...parsed.settings } }
   } catch { return defaultData }
 }
 function getTwoWeekDays(cursor: Date) { const start = new Date(cursor); start.setDate(start.getDate() - start.getDay()); return Array.from({ length: 14 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d }) }
@@ -249,6 +250,24 @@ async function sendSlackNotification(action: SlackAction, schedule: Partial<Sche
   if (!result.ok && !result.skipped) throw new Error(result.error || 'slack_notify_failed')
   return result
 }
+async function sendCompanyDocSlackNotification(action: 'create' | 'update', companyDoc: Partial<CompanyDoc> & { authorName?: string }): Promise<SlackNotifyResult> {
+  const response = await fetch('/api/slack/notify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, companyDoc }),
+  })
+  const result = await response.json().catch((): SlackNotifyResult => ({ ok: false, error: 'invalid_response' })) as SlackNotifyResult
+  if (!result.ok && !result.skipped) throw new Error(result.error || 'slack_notify_failed')
+  return result
+}
+function readImageFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('image_read_failed'))
+    reader.readAsDataURL(file)
+  })
+}
 export default function App() {
   const [data, setData] = useState<AppData>(() => loadData())
   const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem(SESSION_KEY) || localStorage.getItem('ilab-media-scheduler-session-v6') || localStorage.getItem('ilab-media-scheduler-session-v5') || localStorage.getItem('ilab-media-scheduler-session-v4') || '')
@@ -301,7 +320,7 @@ export default function App() {
     const query = companySearch.trim().toLowerCase()
     if (!query) return true
     return `${doc.title} ${doc.summary} ${doc.content} ${doc.category}`.toLowerCase().includes(query)
-  }).sort((a, b) => Number(b.isPublished) - Number(a.isPublished) || b.updatedAt.localeCompare(a.updatedAt)), [data.companyDocs, companyCategory, companySearch, isAdmin])
+  }).sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || Number(b.isPublished) - Number(a.isPublished) || b.updatedAt.localeCompare(a.updatedAt)), [data.companyDocs, companyCategory, companySearch, isAdmin])
   const listSchedules = groupTeamSchedules(normalSchedules.flatMap((s) => getScheduleOccurrences(s, today, addDays(new Date(), 60))).filter((s) => {
     if (!currentUser) return false
     if (view === 'today') return s.date === today
@@ -534,10 +553,14 @@ export default function App() {
     event.preventDefault()
     if (!companyDraft.title.trim()) { setNotice('회사정보 제목을 입력해주세요.'); return }
     const now = new Date().toISOString()
-    const saved: CompanyDoc = { ...companyDraft, id: companyDraft.id || makeId('company-doc'), title: companyDraft.title.trim(), summary: companyDraft.summary.trim(), content: companyDraft.content.trim(), createdAt: companyDraft.createdAt || now, updatedAt: now, updatedBy: currentUserId }
+    const isNew = !editingCompanyDocId
+    const saved: CompanyDoc = { ...companyDraft, id: companyDraft.id || makeId('company-doc'), category: normalizeCompanyDocCategory(companyDraft.category), title: companyDraft.title.trim(), summary: companyDraft.summary.trim(), content: companyDraft.content.trim(), isPinned: Boolean(companyDraft.isPinned), imageUrls: companyDraft.imageUrls || [], createdAt: companyDraft.createdAt || now, updatedAt: now, updatedBy: currentUserId }
     setData((p) => ({ ...p, companyDocs: [saved, ...p.companyDocs.filter((doc) => doc.id !== saved.id)] }))
     saveCompanyDocToSupabase(saved).catch(syncError)
-    setNotice(editingCompanyDocId ? '회사정보를 수정했습니다.' : '회사정보를 추가했습니다.')
+    setNotice(isNew ? '회사정보가 등록되었고 Slack 알림을 발송합니다.' : '회사정보가 수정되었고 Slack 알림을 발송합니다.')
+    sendCompanyDocSlackNotification(isNew ? 'create' : 'update', { ...saved, authorName: staffName(currentUserId) }).then((result) => {
+      if (result.skipped) setNotice('회사정보는 저장됐습니다. Slack 토큰 설정 후 알림이 전송됩니다.')
+    }).catch((error) => { console.error(error); setNotice('회사정보는 저장됐지만 Slack 알림 전송에 실패했습니다.') })
     resetCompanyDocForm()
   }
   function removeCompanyDoc(id: string) {
@@ -573,7 +596,17 @@ function AnnouncementTicker({ announcements, scheduleTitle, dateLabel, onEdit }:
 
 
 function CompanyInfo({ docs, isAdmin, category, setCategory, search, setSearch, draft, setDraft, editingId, onSubmit, onEdit, onDelete, onCancel, staffName }: { docs: CompanyDoc[]; isAdmin: boolean; category: CompanyDocCategory | '전체'; setCategory: (category: CompanyDocCategory | '전체') => void; search: string; setSearch: (value: string) => void; draft: CompanyDoc; setDraft: (doc: CompanyDoc) => void; editingId: string; onSubmit: (event: FormEvent) => void; onEdit: (doc: CompanyDoc) => void; onDelete: (id: string) => void; onCancel: () => void; staffName: (id: string) => string }) {
-  return <section className="companyPanel"><div className="companyHero"><div><p>사내 정보 허브</p><h2>회사정보</h2><span>회사정책, 복지, 경비, 장비 관련 내용을 직원들이 쉽게 확인하는 공간입니다.</span></div>{isAdmin && <b>관리자 작성 가능</b>}</div><div className="companyToolbar"><div className="companyCategories"><button className={category === '전체' ? 'active' : ''} onClick={() => setCategory('전체')}>전체</button>{companyDocCategories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="검색어 입력: 연차, 식대, 장비, 보안" /></div>{isAdmin && <form className="companyEditor" onSubmit={onSubmit}><div className="panelTitle"><h2>{editingId ? '회사정보 수정' : '회사정보 작성'}</h2>{editingId && <button type="button" onClick={onCancel}>새 문서</button>}</div><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as CompanyDocCategory })}>{companyDocCategories.map((item) => <option key={item} value={item}>{item}</option>)}</select><input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="제목 예: 연차/반차 사용 기준" /><input value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} placeholder="요약 예: 휴가 신청과 등록 기준을 안내합니다." /><textarea value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} placeholder="내용은 추후 작성하면 됩니다. 지금은 구조만 만들어두세요." /><label className="checkLine"><input type="checkbox" checked={draft.isPublished} onChange={(event) => setDraft({ ...draft, isPublished: event.target.checked })} /> 직원에게 공개</label><button className="primaryBtn">{editingId ? '수정 저장' : '문서 추가'}</button></form>}<div className="companyDocs">{docs.length ? docs.map((doc) => <article className={`companyDocCard ${!doc.isPublished ? 'private' : ''}`} key={doc.id}><div><em>{doc.category}</em>{!doc.isPublished && <small>비공개</small>}</div><h3>{doc.title}</h3><p>{doc.summary || '요약이 아직 작성되지 않았습니다.'}</p>{doc.content ? <pre>{doc.content}</pre> : <pre className="emptyContent">내용은 추후 작성 예정입니다.</pre>}<footer><span>최종 수정 {doc.updatedAt.slice(0, 10)}{doc.updatedBy ? ` · ${staffName(doc.updatedBy)}` : ''}</span>{isAdmin && <b><button onClick={() => onEdit(doc)}>수정</button><button onClick={() => onDelete(doc.id)}>삭제</button></b>}</footer></article>) : <div className="emptyState">등록된 회사정보가 없습니다. 관리자가 문서를 추가하면 여기에 표시됩니다.</div>}</div></section>
+  const [selectedId, setSelectedId] = useState('')
+  const selectedDoc = docs.find((doc) => doc.id === selectedId) || docs[0]
+  useEffect(() => { if (!selectedDoc) setSelectedId(''); else if (!selectedId || !docs.some((doc) => doc.id === selectedId)) setSelectedId(selectedDoc.id) }, [docs, selectedDoc, selectedId])
+  async function addImages(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith('image/'))
+    if (!files.length) return
+    const images = await Promise.all(files.slice(0, 6).map(readImageFileAsDataUrl))
+    setDraft({ ...draft, imageUrls: [...(draft.imageUrls || []), ...images] })
+    event.target.value = ''
+  }
+  return <section className="companyPanel"><div className="companyHero"><div><p>사내 정보 허브</p><h2>회사정보</h2><span>회사정책, 경비, 복지, 기타 문서를 제목 리스트에서 빠르게 찾아보고 내용을 확인합니다.</span></div>{isAdmin && <b>등록/수정 시 Slack 알림 필수</b>}</div><div className="companyToolbar"><div className="companyCategories"><button className={category === '전체' ? 'active' : ''} onClick={() => setCategory('전체')}>전체</button>{companyDocCategories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="검색어 입력: 연차, 식대, 장비, 보안" /></div>{isAdmin && <form className="companyEditor" onSubmit={onSubmit}><div className="panelTitle"><h2>{editingId ? '회사정보 수정' : '회사정보 작성'}</h2>{editingId && <button type="button" onClick={onCancel}>새 문서</button>}</div><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as CompanyDocCategory })}>{companyDocCategories.map((item) => <option key={item} value={item}>{item}</option>)}</select><input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="제목 예: 연차/반차 사용 기준" /><input value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} placeholder="요약 예: 휴가 신청과 등록 기준을 안내합니다." /><textarea value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} placeholder="내용을 작성하세요. 줄바꿈 그대로 상세 화면에 표시됩니다." /><div className="companyChecks"><label className="checkLine"><input type="checkbox" checked={draft.isPublished} onChange={(event) => setDraft({ ...draft, isPublished: event.target.checked })} /> 직원에게 공개</label><label className="checkLine"><input type="checkbox" checked={draft.isPinned} onChange={(event) => setDraft({ ...draft, isPinned: event.target.checked })} /> 중요 문서로 상단 고정</label></div><label className="imageUpload">이미지 첨부<input type="file" accept="image/*" multiple onChange={addImages} /><small>이미지는 문서 상세 화면에 표시됩니다. 용량이 큰 이미지는 압축 후 첨부하세요.</small></label>{Boolean(draft.imageUrls?.length) && <div className="companyImagePreview">{draft.imageUrls.map((url, index) => <figure key={`${url}-${index}`}><img src={url} alt={`첨부 이미지 ${index + 1}`} /><button type="button" onClick={() => setDraft({ ...draft, imageUrls: draft.imageUrls.filter((_, itemIndex) => itemIndex !== index) })}>삭제</button></figure>)}</div>}<button type="submit" className="primaryBtn">{editingId ? '수정 저장 + Slack 알림' : '문서 등록 + Slack 알림'}</button></form>}<div className="companyDocLayout"><aside className="companyDocList"><h3>문서 제목</h3>{docs.length ? docs.map((doc) => <button key={doc.id} className={`${selectedDoc?.id === doc.id ? 'active' : ''} ${doc.isPinned ? 'pinned' : ''}`} onClick={() => setSelectedId(doc.id)}><span>{doc.isPinned ? '📌 ' : ''}{doc.title}</span><small>{doc.category}{!doc.isPublished ? ' · 비공개' : ''}</small></button>) : <div className="emptyState compact">등록된 문서가 없습니다.</div>}</aside><article className={`companyDocDetail ${selectedDoc && !selectedDoc.isPublished ? 'private' : ''}`}>{selectedDoc ? <><div className="companyDocMeta"><em>{selectedDoc.category}</em>{selectedDoc.isPinned && <strong>중요</strong>}{!selectedDoc.isPublished && <small>비공개</small>}</div><h3>{selectedDoc.title}</h3><p>{selectedDoc.summary || '요약이 아직 작성되지 않았습니다.'}</p><pre className={selectedDoc.content ? '' : 'emptyContent'}>{selectedDoc.content || '내용은 추후 작성 예정입니다.'}</pre>{Boolean(selectedDoc.imageUrls?.length) && <div className="companyDetailImages">{selectedDoc.imageUrls.map((url, index) => <img key={`${url}-${index}`} src={url} alt={`${selectedDoc.title} 첨부 이미지 ${index + 1}`} />)}</div>}<footer><span>최종 수정 {selectedDoc.updatedAt.slice(0, 10)}{selectedDoc.updatedBy ? ` · ${staffName(selectedDoc.updatedBy)}` : ''}</span>{isAdmin && <b><button onClick={() => onEdit(selectedDoc)}>수정</button><button onClick={() => onDelete(selectedDoc.id)}>삭제</button></b>}</footer></> : <div className="emptyState">왼쪽 제목 리스트에서 문서를 선택하세요.</div>}</article></div></section>
 }
 
 function normalizeHexColor(color = '') {

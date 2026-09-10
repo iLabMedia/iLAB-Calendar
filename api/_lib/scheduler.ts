@@ -181,8 +181,10 @@ const briefTeamOrder = ['CEO', '경영', '기획', '미디어', '테크', '운�
 function shortTeamLabel(name: string) { return name.replace(/팀$/, '').trim() || '팀 미지정' }
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토']
 function weekdayOf(iso = '') {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ''
-  return weekdayLabels[new Date(`${iso}T00:00:00+09:00`).getDay()] || ''
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return ''
+  const [, year, month, day] = match.map(Number)
+  return weekdayLabels[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] || ''
 }
 function koreanDate(iso = '') {
   const [, , month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || []

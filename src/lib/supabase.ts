@@ -30,8 +30,8 @@ export type Schedule = {
 }
 export type SlackSetting = { enabled: boolean; webhookUrl: string; defaultChannel: string; notifyOnCreate: boolean; notifyOnUpdate: boolean; notifyOnDelete: boolean; morningBrief: boolean }
 export type AppSetting = { logoUrl: string; headerTitle: string }
-export type CompanyDocCategory = '회사정책' | '복지' | '경비' | '장비'
-export type CompanyDoc = { id: string; category: CompanyDocCategory; title: string; summary: string; content: string; isPublished: boolean; createdAt: string; updatedAt: string; updatedBy: string }
+export type CompanyDocCategory = '회사정책' | '경비' | '복지' | '기타'
+export type CompanyDoc = { id: string; category: CompanyDocCategory; title: string; summary: string; content: string; isPublished: boolean; isPinned: boolean; imageUrls: string[]; createdAt: string; updatedAt: string; updatedBy: string }
 export type AppData = { teams: Team[]; staff: Staff[]; schedules: Schedule[]; companyDocs: CompanyDoc[]; slack: SlackSetting; settings: AppSetting }
 
 function cleanEnvValue(value: string | undefined) {
@@ -58,6 +58,7 @@ function withProjectDoneMark(text = '', completed = false) {
   const clean = stripProjectDoneMark(text)
   return completed ? `${PROJECT_DONE_MARK}${clean ? `\n${clean}` : ''}` : clean
 }
+function normalizeCompanyDocCategory(category: unknown): CompanyDocCategory { return category === '경비' || category === '복지' || category === '기타' ? category : '회사정책' }
 
 function rowToTeam(row: Record<string, unknown>): Team {
   return {
@@ -106,11 +107,13 @@ function rowToSchedule(row: Record<string, unknown>): Schedule {
 function rowToCompanyDoc(row: Record<string, unknown>): CompanyDoc {
   return {
     id: String(row.id),
-    category: (['회사정책', '복지', '경비', '장비'].includes(String(row.category)) ? row.category : '회사정책') as CompanyDocCategory,
+    category: normalizeCompanyDocCategory(row.category),
     title: String(row.title || '제목 없는 회사정보'),
     summary: String(row.summary || ''),
     content: String(row.content || ''),
     isPublished: Boolean(row.is_published ?? true),
+    isPinned: Boolean(row.is_pinned ?? false),
+    imageUrls: Array.isArray(row.image_urls) ? row.image_urls.map(String) : [],
     createdAt: String(row.created_at || new Date().toISOString()),
     updatedAt: String(row.updated_at || new Date().toISOString()),
     updatedBy: String(row.updated_by || ''),
@@ -170,7 +173,7 @@ export async function fetchAppDataFromSupabase(): Promise<AppData> {
 
 
 function companyDocToRow(doc: CompanyDoc) {
-  return { id: doc.id, category: doc.category, title: doc.title, summary: doc.summary || null, content: doc.content || null, is_published: doc.isPublished, updated_by: doc.updatedBy || null }
+  return { id: doc.id, category: normalizeCompanyDocCategory(doc.category), title: doc.title, summary: doc.summary || null, content: doc.content || null, is_published: doc.isPublished, is_pinned: Boolean(doc.isPinned), image_urls: doc.imageUrls || [], updated_by: doc.updatedBy || null }
 }
 
 export async function saveCompanyDocToSupabase(doc: CompanyDoc) {
