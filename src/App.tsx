@@ -154,7 +154,7 @@ function getScheduleOccurrences(schedule: Schedule, rangeStart: string, rangeEnd
   return result
 }
 function roleLabel(role: Role) { return role === 'admin' ? '관리자' : role === 'employee' ? '임직원' : '프리' }
-const fixedTeamOrder = ['공지', '경영', '기획', '미디어', '테크', '운영해외사업', 'CEO']
+const fixedTeamOrder = ['공지', 'CEO', '기획', '테크', '미디어', '운영해외사업', '경영']
 function compactSortText(text = '') { return text.toLowerCase().replace(/팀/g, '').replace(/[\s/_·・.()[\]{}-]/g, '') }
 function teamSortLabel(teamId = '', teams: Team[] = []) {
   const team = teams.find((team) => team.id === teamId)
