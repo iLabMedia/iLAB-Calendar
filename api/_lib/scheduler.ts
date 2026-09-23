@@ -48,6 +48,12 @@ export function addDays(iso: string, days: number) {
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
 }
+function addMonths(iso: string, months: number) {
+  const [year, month, day] = iso.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  date.setUTCMonth(date.getUTCMonth() + months)
+  return date.toISOString().slice(0, 10)
+}
 function stripDone(text = '') { return text.replace(PROJECT_DONE_MARK, '').trim() }
 function withDone(text = '', completed = false) { const stripped = stripDone(text); return completed ? `${PROJECT_DONE_MARK}${stripped ? `\n${stripped}` : ''}` : stripped }
 function normalizeType(type: unknown): ScheduleType { return type === 'project' ? 'project' : 'event' }
@@ -150,11 +156,15 @@ export function occurrences(schedule: Schedule, start: string, end: string): Sch
     if (final >= start && schedule.date <= end) result.push(schedule)
     return result
   }
-  for (let date = schedule.date; date <= final && date <= end; date = addDays(date, 1)) {
+  if (schedule.repeat === 'none') {
+    for (let date = schedule.date; date <= final && date <= end; date = addDays(date, 1)) {
+      if (date >= start) result.push({ ...schedule, date })
+    }
+    return result
+  }
+  for (let date = schedule.date; date <= final && date <= end;) {
     if (date >= start) result.push({ ...schedule, date })
-    if (schedule.repeat === 'none') break
-    if (schedule.repeat === 'weekly') date = addDays(date, 6)
-    if (schedule.repeat === 'monthly') break
+    date = schedule.repeat === 'daily' ? addDays(date, 1) : schedule.repeat === 'weekly' ? addDays(date, 7) : addMonths(date, 1)
   }
   return result
 }

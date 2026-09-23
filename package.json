@@ -9,6 +9,7 @@
     "dev:phone": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test:brief": "rm -rf .tmp-test && tsc --ignoreConfig --skipLibCheck --outDir .tmp-test --target es2023 --module nodenext --moduleResolution nodenext --types node api/_lib/scheduler.ts tests/scheduler-brief.test.ts && node --test .tmp-test/tests/scheduler-brief.test.js",
     "preview": "vite preview --host 127.0.0.1 --open"
   },
   "dependencies": {
