@@ -22,13 +22,13 @@
 
 ### Phase 2. 매일 오전 9시 일정 브리핑
 
-Vercel Cron이 매일 한국시간 오전 9시에 실행됩니다.
+오류 및 일정 누락 방지를 위해 자동 일정 브리핑 Cron은 현재 비활성화되어 있습니다.
 
 ```text
 /api/slack/daily-brief
 ```
 
-Vercel Cron 설정:
+필요할 때만 다시 사용할 수 있는 Vercel Cron 설정 예시:
 
 ```json
 {
